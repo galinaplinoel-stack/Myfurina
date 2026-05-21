@@ -44,8 +44,8 @@ SUPERAGENT is an **elite execution agent** that combines:
 
 ```bash
 # Clone the repository
-git clone https://github.com/galinaplinoel-stack/superagent-installer.git
-cd superagent-installer
+git clone https://github.com/galinaplinoel-stack/Myfurina.git
+cd Myfurina
 
 # Make installer executable
 chmod +x install.sh
@@ -301,6 +301,6 @@ MIT License
 
 **SUPERAGENT — Built for execution. 🔥**
 
-[GitHub](https://github.com/galinaplinoel-stack/superagent-installer) • [Issues](https://github.com/galinaplinoel-stack/superagent-installer/issues)
+[GitHub](https://github.com/galinaplinoel-stack/Myfurina) • [Issues](https://github.com/galinaplinoel-stack/Myfurina/issues)
 
 </div>
