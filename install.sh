@@ -265,6 +265,10 @@ cat > "$BRAIN_DIR/TOOLS.md" << 'EOF'
 - 9Router: http://localhost:20128/v1
 - Model: [configured during setup]
 
+## Messaging
+- Telegram Bot: [configured if provided]
+- Chat ID: [configured if provided]
+
 ## Deployment
 - Vercel, Docker, VPS
 EOF
@@ -292,12 +296,27 @@ BASE_URL=${BASE_URL:-"http://localhost:20128/v1"}
 echo -e "${CYAN}Enter Model name (e.g., claude-sonnet-4, gpt-4o, deepseek-chat):${NC}"
 read -r MODEL_NAME
 
+# Get Telegram Bot Token (optional)
+echo -e "${CYAN}Enter Telegram Bot Token (optional, press Enter to skip):${NC}"
+read -r TELEGRAM_BOT_TOKEN
+
+# Get Telegram Chat ID (optional)
+TELEGRAM_CHAT_ID=""
+if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+    echo -e "${CYAN}Enter your Telegram Chat ID (for notifications):${NC}"
+    read -r TELEGRAM_CHAT_ID
+fi
+
 # Create config file
 cat > "$INSTALL_DIR/config.env" << EOF
 # SUPERAGENT Configuration
 API_KEY=$API_KEY
 BASE_URL=$BASE_URL
 MODEL=$MODEL_NAME
+
+# Telegram Bot (optional)
+TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
+TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID
 
 # 9Router Settings
 NINE_ROUTER_PORT=20128
@@ -308,6 +327,13 @@ echo -e "${GREEN}✓ Configuration saved${NC}"
 # Update TOOLS.md with actual config
 sed -i "s|http://localhost:20128/v1|$BASE_URL|g" "$BRAIN_DIR/TOOLS.md"
 sed -i "s|\[configured during setup\]|$MODEL_NAME|g" "$BRAIN_DIR/TOOLS.md"
+
+# Update Telegram config in TOOLS.md
+if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+    sed -i "s|\[configured if provided\]|✓ Configured|g" "$BRAIN_DIR/TOOLS.md"
+else
+    sed -i "s|\[configured if provided\]|Not configured|g" "$BRAIN_DIR/TOOLS.md"
+fi
 
 echo ""
 
