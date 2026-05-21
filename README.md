@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**One-click installer for AI Agent + 9Router Gateway**
+**One-click installer for AI Agent + OpenClaw**
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-linux-lightgrey.svg)]()
@@ -16,18 +16,19 @@
 
 SUPERAGENT is an **elite execution agent** that combines:
 
-- 🧠 **OpenClaw** — AI OpenClaw
-- 🚀 **9Router** — FREE AI gateway with 40+ providers
+- 🧠 **OpenClaw** — AI agent framework
 - 📝 **SOUL.md** — Comprehensive agent constitution
 - 🎯 **Skill System** — Modular capabilities (m1-m9, x1-x3)
+- 📱 **Telegram Bot** — Chat with your agent via Telegram
 
 ## Features
 
 - ✅ **One-click installation** — Just run the script
-- ✅ **9Router integration** — FREE AI models, auto-fallback
+- ✅ **Direct OpenClaw config** — API key, base URL, model langsung
+- ✅ **Telegram integration** — Bot token & chat ID required
 - ✅ **Complete brain system** — SOUL.md, skills, memory
-- ✅ **Multi-provider support** — Claude, GPT, Gemini, DeepSeek, dll
-- ✅ **Indonesian language** — Casual "aku/kamu" register
+- ✅ **Multi-provider support** — OpenAI, Claude, Gemini, DeepSeek, dll
+- ✅ **Custom language** — Bisa pakai bahasa apapun
 - ✅ **Modular skills** — Business, VPS, content, automation, dll
 
 ## Quick Start
@@ -37,6 +38,7 @@ SUPERAGENT is an **elite execution agent** that combines:
 - Linux (Ubuntu/Debian recommended)
 - Root access (sudo)
 - Internet connection
+- Telegram Bot Token & Chat ID
 
 ### Installation
 
@@ -56,10 +58,15 @@ sudo ./install.sh
 
 1. **System check** — Verifies Linux and root access
 2. **Install dependencies** — Node.js, npm, curl, git
-3. **Install 9Router** — AI gateway (npm install -g 9router)
-4. **Install OpenClaw** — OpenClaw
-5. **Setup brain** — SOUL.md, skills, memory system
-6. **Configure API** — Asks for API key, base URL, model
+3. **Install OpenClaw** — AI agent framework
+4. **Setup brain** — SOUL.md, skills, memory system
+5. **Configure API & Telegram** — Asks for:
+   - API Key
+   - Base URL (e.g., `https://api.openai.com/v1`)
+   - Model name (e.g., `gpt-4o`)
+   - **Telegram Bot Token** (required)
+   - **Telegram Chat ID** (required)
+   - User profile (name, username, language, style)
 
 ## After Installation
 
@@ -70,20 +77,17 @@ sudo ./install.sh
 ```
 
 This will:
-- Start 9Router on port 20128
-- Load your configuration
-- Start the OpenClaw
+- Export API key and base URL
+- Start OpenClaw gateway
 
-### Access 9Router Dashboard
+### Stop SUPERAGENT
 
-Open your browser and go to:
-```
-http://localhost:20128
+```bash
+~/.superagent/stop.sh
 ```
 
 ### Edit Your Profile
 
-Edit the user profile:
 ```bash
 nano ~/.superagent/brain/USER.md
 ```
@@ -100,19 +104,21 @@ The installer creates a config file at:
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `API_KEY` | Your API key | `sk-ant-...` |
-| `BASE_URL` | API endpoint | `http://localhost:20128/v1` |
-| `MODEL` | Model name | `claude-sonnet-4` |
+| `BASE_URL` | API endpoint | `https://api.openai.com/v1` |
+| `MODEL` | Model name | `gpt-4o` |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token | `123456:ABC-DEF` |
+| `TELEGRAM_CHAT_ID` | Telegram chat ID | `123456789` |
 
-### Supported Models
+### Supported Providers
 
-| Provider | Models | Free? |
-|----------|--------|-------|
-| **Kiro AI** | Claude unlimited | ✅ FREE |
-| **OpenCode Free** | Various models | ✅ FREE |
-| **Anthropic** | Claude 3.5, Claude 4 | ❌ Paid |
-| **OpenAI** | GPT-4o, GPT-5 | ❌ Paid |
-| **DeepSeek** | DeepSeek Chat | ❌ Cheap |
-| **Groq** | Llama, Mixtral | ❌ Fast |
+| Provider | Base URL | Models |
+|----------|----------|--------|
+| **OpenAI** | `https://api.openai.com/v1` | GPT-4o, GPT-4, GPT-3.5 |
+| **Anthropic** | `https://api.anthropic.com/v1` | Claude 3.5, Claude 3 |
+| **OpenRouter** | `https://openrouter.ai/api/v1` | 100+ models |
+| **DeepSeek** | `https://api.deepseek.com/v1` | DeepSeek Chat |
+| **Groq** | `https://api.groq.com/v1` | Llama, Mixtral |
+| **Local** | `http://localhost:11434/v1` | Ollama models |
 
 ## Brain Structure
 
@@ -185,27 +191,25 @@ nano ~/.superagent/brain/USER.md
 cat ~/.superagent/brain/MEMORY.md
 ```
 
-## Troubleshooting
-
-### 9Router won't start
+### Edit SOUL.md
 ```bash
-# Check if port is in use
-lsof -i :20128
-
-# Kill existing process
-pkill -f 9router
-
-# Restart
-~/.superagent/start.sh
+nano ~/.superagent/brain/SOUL.md
 ```
+
+### Add Custom Skill
+```bash
+nano ~/.superagent/brain/skills/m10.md
+```
+
+## Troubleshooting
 
 ### Agent not responding
 ```bash
-# Check 9Router status
-curl http://localhost:20128/health
-
 # Check configuration
 cat ~/.superagent/config.env
+
+# Check OpenClaw status
+openclaw gateway status
 
 # Restart services
 ~/.superagent/stop.sh
@@ -217,9 +221,21 @@ cat ~/.superagent/config.env
 # Edit configuration
 nano ~/.superagent/config.env
 
+# Reconfigure OpenClaw
+openclaw config set models.providers.custom.apiKey "your-new-key"
+
 # Restart services
 ~/.superagent/stop.sh
 ~/.superagent/start.sh
+```
+
+### Telegram Bot not working
+```bash
+# Check bot token
+cat ~/.superagent/config.env | grep TELEGRAM
+
+# Test bot connection
+curl "https://api.telegram.org/bot<YOUR_TOKEN>/getMe"
 ```
 
 ## Advanced Usage
@@ -245,11 +261,21 @@ Follow the format:
 - [Rules]
 ```
 
-### Multiple Providers
+### Switch Provider
 
-9Router supports multiple providers. Configure in dashboard:
-```
-http://localhost:20128/dashboard
+Edit config and reconfigure:
+```bash
+# Edit config
+nano ~/.superagent/config.env
+
+# Update OpenClaw
+openclaw config set models.providers.custom.baseUrl "https://new-provider.com/v1"
+openclaw config set models.providers.custom.apiKey "new-api-key"
+openclaw config set models.defaults.model "new-model-name"
+
+# Restart
+~/.superagent/stop.sh
+~/.superagent/start.sh
 ```
 
 ### Memory Management
