@@ -355,6 +355,28 @@ rm -f /tmp/openclaw-patch.json
 
 echo -e "${GREEN}✓ OpenClaw configured${NC}"
 
+# ============================================
+# Setup Telegram Channel & Owner
+# ============================================
+echo -e "${YELLOW}Setting up Telegram channel...${NC}"
+
+# Add Telegram channel with bot token
+openclaw channels add --channel telegram --token "$TELEGRAM_BOT_TOKEN" 2>/dev/null || {
+    echo -e "${YELLOW}Warning: Telegram channel setup failed, but continuing...${NC}"
+}
+
+# Configure owner allow from (auto-approve user)
+openclaw config set commands.ownerAllowFrom "telegram:$TELEGRAM_CHAT_ID" 2>/dev/null || {
+    echo -e "${YELLOW}Warning: Owner config failed, but continuing...${NC}"
+}
+
+# Bind Telegram to main agent
+openclaw agents bind --bind telegram 2>/dev/null || {
+    echo -e "${YELLOW}Warning: Agent binding failed, but continuing...${NC}"
+}
+
+echo -e "${GREEN}✓ Telegram configured & owner approved${NC}"
+
 # Update TOOLS.md with actual config
 sed -i "s|\[configured during setup\]|$MODEL_NAME|g" "$BRAIN_DIR/TOOLS.md"
 sed -i "s|\[configured if provided\]|✓ Configured|g" "$BRAIN_DIR/TOOLS.md" 2>/dev/null || true
