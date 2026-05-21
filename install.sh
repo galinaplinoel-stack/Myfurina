@@ -369,6 +369,23 @@ fi)
 EOF
 echo -e "${GREEN}✓ Profile created${NC}"
 
+# ============================================
+# Update SOUL.md with user's language
+# ============================================
+echo -e "${YELLOW}Updating SOUL.md with your language preference...${NC}"
+
+# Update Language Rules in SOUL.md
+sed -i "s|- \*\*Chat\*\*: \[USER_LANGUAGE\]|- **Chat**: $USER_LANG|g" "$BRAIN_DIR/SOUL.md"
+
+# Update Identity section based on language
+if [ "$USER_LANG" = "Bahasa Indonesia" ]; then
+    sed -i 's|- Use appropriate register for the specified language.|- Use casual register (aku/kamu) for Indonesian users.|g' "$BRAIN_DIR/SOUL.md"
+else
+    sed -i "s|- Use appropriate register for the specified language.|- Use appropriate register for $USER_LANG users.|g" "$BRAIN_DIR/SOUL.md"
+fi
+
+echo -e "${GREEN}✓ SOUL.md updated with $USER_LANG${NC}"
+
 echo ""
 
 # ============================================
