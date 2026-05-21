@@ -308,7 +308,7 @@ API_KEY=$API_KEY
 BASE_URL=$BASE_URL
 MODEL=$MODEL_NAME
 
-# Telegram Bot (optional)
+# Telegram Bot (required)
 TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID
 EOF
@@ -319,12 +319,39 @@ echo -e "${GREEN}✓ Configuration saved${NC}"
 # ============================================
 echo -e "${YELLOW}Configuring OpenClaw with your API settings...${NC}"
 
-# Set OpenClaw provider config
-openclaw config set models.providers.custom.baseUrl "$BASE_URL" 2>/dev/null || true
-openclaw config set models.providers.custom.apiKey "$API_KEY" 2>/dev/null || true
+# Set gateway mode to local
+openclaw config set gateway.mode local 2>/dev/null || true
 
-# Set default model
-openclaw config set models.defaults.model "$MODEL_NAME" 2>/dev/null || true
+# Create OpenClaw config patch file
+cat > /tmp/openclaw-patch.json << EOF
+{
+  "models": {
+    "providers": {
+      "custom": {
+        "baseUrl": "$BASE_URL",
+        "apiKey": "$API_KEY",
+        "models": [
+          {
+            "id": "$MODEL_NAME",
+            "name": "$MODEL_NAME",
+            "api": "openai-completions",
+            "contextWindow": 128000,
+            "maxTokens": 8192
+          }
+        ]
+      }
+    }
+  }
+}
+EOF
+
+# Apply config patch
+openclaw config patch --file /tmp/openclaw-patch.json 2>/dev/null || {
+    echo -e "${YELLOW}Warning: OpenClaw config patch failed, but continuing...${NC}"
+}
+
+# Clean up temp file
+rm -f /tmp/openclaw-patch.json
 
 echo -e "${GREEN}✓ OpenClaw configured${NC}"
 
