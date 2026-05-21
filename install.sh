@@ -249,8 +249,8 @@ cat > "$BRAIN_DIR/TOOLS.md" << 'EOF'
 - Base URL: [configured during setup]
 
 ## Messaging
-- Telegram Bot: [configured if provided]
-- Chat ID: [configured if provided]
+- Telegram Bot: [configured]
+- Chat ID: [configured]
 
 ## Deployment
 - Vercel, Docker, VPS
@@ -279,16 +279,27 @@ BASE_URL=${BASE_URL:-"https://api.openai.com/v1"}
 echo -e "${CYAN}Enter Model name (e.g., gpt-4o, claude-sonnet-4, deepseek-chat):${NC}"
 read -r MODEL_NAME
 
-# Get Telegram Bot Token (optional)
-echo -e "${CYAN}Enter Telegram Bot Token (optional, press Enter to skip):${NC}"
+# Get Telegram Bot Token (required)
+echo -e "${CYAN}Enter your Telegram Bot Token:${NC}"
 read -r TELEGRAM_BOT_TOKEN
 
-# Get Telegram Chat ID (optional)
-TELEGRAM_CHAT_ID=""
-if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
-    echo -e "${CYAN}Enter your Telegram Chat ID (for notifications):${NC}"
+# Validate not empty
+while [ -z "$TELEGRAM_BOT_TOKEN" ]; do
+    echo -e "${RED}Telegram Bot Token is required!${NC}"
+    echo -e "${CYAN}Enter your Telegram Bot Token:${NC}"
+    read -r TELEGRAM_BOT_TOKEN
+done
+
+# Get Telegram Chat ID (required)
+echo -e "${CYAN}Enter your Telegram Chat ID:${NC}"
+read -r TELEGRAM_CHAT_ID
+
+# Validate not empty
+while [ -z "$TELEGRAM_CHAT_ID" ]; do
+    echo -e "${RED}Telegram Chat ID is required!${NC}"
+    echo -e "${CYAN}Enter your Telegram Chat ID:${NC}"
     read -r TELEGRAM_CHAT_ID
-fi
+done
 
 # Create config file for SUPERAGENT
 cat > "$INSTALL_DIR/config.env" << EOF
@@ -327,11 +338,7 @@ sed -i "s|Provider: \[configured during setup\]|Provider: Custom ($PROVIDER_NAME
 sed -i "s|Base URL: \[configured during setup\]|Base URL: $BASE_URL|g" "$BRAIN_DIR/TOOLS.md"
 
 # Update Telegram config in TOOLS.md
-if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
-    sed -i "s|\[configured if provided\]|✓ Configured|g" "$BRAIN_DIR/TOOLS.md"
-else
-    sed -i "s|\[configured if provided\]|Not configured|g" "$BRAIN_DIR/TOOLS.md"
-fi
+sed -i "s|\[configured\]|✓ Configured|g" "$BRAIN_DIR/TOOLS.md"
 
 echo ""
 
