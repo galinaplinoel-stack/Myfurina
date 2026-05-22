@@ -90,7 +90,7 @@ echo ""
 echo -e "${YELLOW}[3/8] Installing dependencies...${NC}"
 
 PACKAGES_TO_INSTALL=""
-for pkg in curl wget git; do
+for pkg in curl wget git python3; do
     if ! command -v $pkg &> /dev/null; then
         PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL $pkg"
     else
@@ -358,30 +358,96 @@ if [[ "$AGENT_CHOICE" == "1" ]]; then
     # === HERMES CONFIG ===
     echo -e "${CYAN}  Configuring Hermes Agent...${NC}"
 
-    hermes config set custom_providers.myfurina.name "Myfurina Provider" 2>/dev/null || true
-    hermes config set custom_providers.myfurina.base_url "$BASE_URL" 2>/dev/null || true
-    hermes config set custom_providers.myfurina.api_key "$API_KEY" 2>/dev/null || true
-    hermes config set custom_providers.myfurina.model "$MODEL_NAME" 2>/dev/null || true
-    hermes config set main_provider "custom:myfurina" 2>/dev/null || true
+    # Step 1: Set custom provider via hermes config
+    echo -e "${CYAN}  Setting up custom provider...${NC}"
+    hermes config set custom_providers.myfurina.name "Myfurina Provider" 2>&1 || echo -e "${YELLOW}  Warning: custom_providers.name set failed${NC}"
+    hermes config set custom_providers.myfurina.base_url "$BASE_URL" 2>&1 || echo -e "${YELLOW}  Warning: custom_providers.base_url set failed${NC}"
+    hermes config set custom_providers.myfurina.api_key "$API_KEY" 2>&1 || echo -e "${YELLOW}  Warning: custom_providers.api_key set failed${NC}"
+    hermes config set custom_providers.myfurina.model "$MODEL_NAME" 2>&1 || echo -e "${YELLOW}  Warning: custom_providers.model set failed${NC}"
+    hermes config set main_provider "custom:myfurina" 2>&1 || echo -e "${YELLOW}  Warning: main_provider set failed${NC}"
+    echo -e "${GREEN}  ✓ Custom provider configured${NC}"
 
-    # Set in .env with secure permissions
-    cat >> "$HOME/.hermes/.env" << EOF
+    # Step 2: Create/ensure .env file exists with secure permissions
+    HERMES_ENV="$HOME/.hermes/.env"
+    mkdir -p "$HOME/.hermes"
+    touch "$HERMES_ENV"
+
+    # Append Myfurina config (don't overwrite existing env)
+    if ! grep -q "Myfurina Configuration" "$HERMES_ENV" 2>/dev/null; then
+        cat >> "$HERMES_ENV" << EOF
 
 # Myfurina Configuration
 OPENAI_API_KEY=$API_KEY
 OPENAI_BASE_URL=$BASE_URL
 TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
 EOF
-    chmod 600 "$HOME/.hermes/.env"
+    fi
+    chmod 600 "$HERMES_ENV"
+    echo -e "${GREEN}  ✓ Environment variables configured${NC}"
 
-    # Configure Telegram
-    hermes config set channels.telegram.enabled true 2>/dev/null || true
-    hermes config set channels.telegram.bot_token "$TELEGRAM_BOT_TOKEN" 2>/dev/null || true
-    hermes config set channels.telegram.allowed_users "[\"$TELEGRAM_CHAT_ID\"]" 2>/dev/null || true
+    # Step 3: Configure Telegram in config.yaml using Python (reliable YAML editing)
+    echo -e "${CYAN}  Configuring Telegram...${NC}"
+    python3 << PYEOF
+import yaml
+import os
 
-    # Restrict config.yaml permissions
+config_path = os.path.expanduser("~/.hermes/config.yaml")
+os.makedirs(os.path.dirname(config_path), exist_ok=True)
+
+# Load existing config or start fresh
+config = {}
+if os.path.exists(config_path):
+    try:
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f) or {}
+    except:
+        config = {}
+
+# Set Telegram channel config
+if 'channels' not in config:
+    config['channels'] = {}
+config['channels']['telegram'] = {
+    'enabled': True,
+    'bot_token': '$TELEGRAM_BOT_TOKEN',
+    'allowed_users': ['$TELEGRAM_CHAT_ID']
+}
+
+# Write back
+with open(config_path, 'w') as f:
+    yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+
+print("Telegram configured successfully")
+PYEOF
+
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}  ✓ Telegram channel configured${NC}"
+    else
+        echo -e "${YELLOW}  Python YAML edit failed, trying hermes config set...${NC}"
+        hermes config set channels.telegram.enabled true 2>&1 || true
+        hermes config set channels.telegram.bot_token "$TELEGRAM_BOT_TOKEN" 2>&1 || true
+    fi
+
+    # Step 4: Restrict config.yaml permissions
     chmod 600 "$HOME/.hermes/config.yaml" 2>/dev/null || true
 
+    # Step 5: Verify config
+    echo -e "${CYAN}  Verifying configuration...${NC}"
+    if [[ -f "$HOME/.hermes/config.yaml" ]]; then
+        if grep -q "custom:myfurina" "$HOME/.hermes/config.yaml" 2>/dev/null; then
+            echo -e "${GREEN}  ✓ Custom provider verified in config${NC}"
+        else
+            echo -e "${YELLOW}  ⚠ Custom provider not found in config (may need manual setup)${NC}"
+        fi
+        if grep -q "telegram" "$HOME/.hermes/config.yaml" 2>/dev/null; then
+            echo -e "${GREEN}  ✓ Telegram config verified${NC}"
+        else
+            echo -e "${YELLOW}  ⚠ Telegram config not found (may need manual setup)${NC}"
+        fi
+    else
+        echo -e "${YELLOW}  ⚠ Config file not found at ~/.hermes/config.yaml${NC}"
+    fi
+
+    echo ""
     echo -e "${GREEN}  ✓ Hermes configured with custom provider${NC}"
     echo -e "${GREEN}  ✓ Telegram channel configured${NC}"
     echo -e "${GREEN}  ✓ Config files secured (chmod 600)${NC}"
@@ -394,7 +460,6 @@ else
     mkdir -p "$HOME/.openclaw"
 
     # Create comprehensive config with ALL required settings
-    # This includes: gateway, models, telegram, AND owner auto-approve
     OPENCLAW_CONFIG="$HOME/.openclaw/openclaw.json"
 
     cat > "$OPENCLAW_CONFIG" << EOF
@@ -533,6 +598,20 @@ if [[ "$AGENT_CHOICE" == "1" ]]; then
 export OPENAI_API_KEY="$API_KEY"
 export OPENAI_BASE_URL="$BASE_URL"
 
+# Verify Hermes is installed
+if ! command -v hermes &> /dev/null; then
+    echo -e "${RED}Error: hermes command not found${NC}"
+    echo -e "${YELLOW}Try: curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash${NC}"
+    exit 1
+fi
+
+# Verify config exists
+if [[ ! -f "$HOME/.hermes/config.yaml" ]]; then
+    echo -e "${RED}Error: Hermes config not found at ~/.hermes/config.yaml${NC}"
+    echo -e "${YELLOW}Re-run the installer or run: hermes setup${NC}"
+    exit 1
+fi
+
 # Start Hermes gateway
 echo -e "${CYAN}Starting Hermes gateway...${NC}"
 hermes gateway start
@@ -651,10 +730,13 @@ echo -e "  ${BOLD}Edit Profile:${NC}   nano $BRAIN_DIR/USER.md"
 echo -e "  ${BOLD}Edit Memory:${NC}    nano $BRAIN_DIR/MEMORY.md"
 echo -e "  ${BOLD}Edit Tools:${NC}     nano $BRAIN_DIR/TOOLS.md"
 echo ""
-if [[ "$AGENT_CHOICE" == "2" ]]; then
+if [[ "$AGENT_CHOICE" == "1" ]]; then
+    echo -e "  ${YELLOW}Hermes Config:${NC} $HOME/.hermes/config.yaml"
+    echo -e "  ${YELLOW}Hermes Env:${NC}    $HOME/.hermes/.env"
+else
     echo -e "  ${YELLOW}OpenClaw Config:${NC} $HOME/.openclaw/openclaw.json"
     echo -e "  ${GREEN}Owner auto-approve: telegram:$TELEGRAM_CHAT_ID${NC}"
-    echo ""
 fi
+echo ""
 echo -e "${GREEN}  Run: ~/.superagent/start.sh${NC}"
 echo ""
