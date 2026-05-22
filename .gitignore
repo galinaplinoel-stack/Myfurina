@@ -1,0 +1,15 @@
+# Security: Never commit sensitive files
+config.env
+.env
+*.key
+*.pem
+*.token
+*.secret
+
+# Brain files that may contain user data
+brain/MEMORY.md
+brain/USER.md
+
+# OS files
+.DS_Store
+Thumbs.db

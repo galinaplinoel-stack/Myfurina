@@ -123,7 +123,6 @@ if [[ "$AGENT_CHOICE" == "2" ]]; then
         echo -e "${GREEN}  ✓ npm already installed${NC}"
     fi
 else
-    # Hermes also needs Node.js for some features
     if ! command -v node &> /dev/null; then
         echo -e "${CYAN}  Installing Node.js (for gateway features)...${NC}"
         curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
@@ -141,7 +140,6 @@ echo ""
 echo -e "${YELLOW}[4/8] Installing $AGENT_NAME...${NC}"
 
 if [[ "$AGENT_CHOICE" == "1" ]]; then
-    # Install Hermes Agent
     if command -v hermes &> /dev/null; then
         echo -e "${GREEN}  ✓ Hermes already installed${NC}"
     else
@@ -156,7 +154,6 @@ if [[ "$AGENT_CHOICE" == "1" ]]; then
         fi
     fi
 else
-    # Install OpenClaw
     if command -v openclaw &> /dev/null; then
         echo -e "${GREEN}  ✓ OpenClaw already installed${NC}"
     else
@@ -185,7 +182,6 @@ echo ""
 echo -e "${YELLOW}[5/8] API Configuration${NC}"
 echo ""
 
-# API Key
 echo -e -n "${CYAN}  Enter your API Key: ${NC}"
 read -r API_KEY
 while [[ -z "$API_KEY" ]]; do
@@ -194,12 +190,10 @@ while [[ -z "$API_KEY" ]]; do
     read -r API_KEY
 done
 
-# Base URL
 echo -e -n "${CYAN}  Enter Base URL (default: https://api.openai.com/v1): ${NC}"
 read -r BASE_URL
 BASE_URL=${BASE_URL:-"https://api.openai.com/v1"}
 
-# Model
 echo -e -n "${CYAN}  Enter Model name (e.g., gpt-4o, claude-sonnet-4): ${NC}"
 read -r MODEL_NAME
 while [[ -z "$MODEL_NAME" ]]; do
@@ -273,14 +267,35 @@ echo ""
 # ============================================
 echo -e "${YELLOW}[8/8] Setting up brain & configuring $AGENT_NAME...${NC}"
 
-# Create directories
+# Create directories with secure permissions
 mkdir -p "$BRAIN_DIR" "$SKILLS_DIR" "$MEMORY_DIR"
+chmod 700 "$INSTALL_DIR"
+chmod 700 "$BRAIN_DIR"
+chmod 700 "$SKILLS_DIR"
+chmod 700 "$MEMORY_DIR"
 
-# Save config.env
+# ============================================
+# SECURITY: Create .gitignore to prevent accidental commits
+# ============================================
+cat > "$INSTALL_DIR/.gitignore" << 'EOF'
+# Security: Never commit these files
+config.env
+.env
+*.key
+*.pem
+*.token
+brain/MEMORY.md
+brain/USER.md
+EOF
+echo -e "${GREEN}  ✓ .gitignore created (prevents accidental secret commits)${NC}"
+
+# Save config.env with restricted permissions (owner-only read/write)
 cat > "$INSTALL_DIR/config.env" << EOF
 # Myfurina Configuration
 # Agent: $AGENT_NAME
 # Generated: $(date)
+# SECURITY: This file contains sensitive credentials
+# Permissions: 600 (owner read/write only)
 
 API_KEY=$API_KEY
 BASE_URL=$BASE_URL
@@ -289,9 +304,10 @@ TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID
 AGENT_FRAMEWORK=$AGENT_NAME
 EOF
-echo -e "${GREEN}  ✓ Config saved to $INSTALL_DIR/config.env${NC}"
+chmod 600 "$INSTALL_DIR/config.env"
+echo -e "${GREEN}  ✓ Config saved (permissions: 600 — owner only)${NC}"
 
-# Create USER.md
+# Create USER.md with restricted permissions
 cat > "$BRAIN_DIR/USER.md" << EOF
 # USER.md — Owner Profile
 
@@ -300,9 +316,10 @@ cat > "$BRAIN_DIR/USER.md" << EOF
 **Language**: $USER_LANG
 **Style**: $USER_STYLE
 EOF
-echo -e "${GREEN}  ✓ User profile created${NC}"
+chmod 600 "$BRAIN_DIR/USER.md"
+echo -e "${GREEN}  ✓ User profile created (permissions: 600)${NC}"
 
-# Create MEMORY.md
+# Create MEMORY.md with restricted permissions
 cat > "$BRAIN_DIR/MEMORY.md" << EOF
 # MEMORY.md — Long-term Context
 
@@ -315,9 +332,10 @@ cat > "$BRAIN_DIR/MEMORY.md" << EOF
 ## User Preferences
 - Communication style: $USER_STYLE
 EOF
-echo -e "${GREEN}  ✓ Memory initialized${NC}"
+chmod 600 "$BRAIN_DIR/MEMORY.md"
+echo -e "${GREEN}  ✓ Memory initialized (permissions: 600)${NC}"
 
-# Create TOOLS.md
+# Create TOOLS.md (no secrets, but still restrict)
 cat > "$BRAIN_DIR/TOOLS.md" << EOF
 # TOOLS.md — Available Tools
 
@@ -330,7 +348,8 @@ cat > "$BRAIN_DIR/TOOLS.md" << EOF
 - Telegram Bot: ✓ Configured
 - Chat ID: $TELEGRAM_CHAT_ID
 EOF
-echo -e "${GREEN}  ✓ Tools doc created${NC}"
+chmod 600 "$BRAIN_DIR/TOOLS.md"
+echo -e "${GREEN}  ✓ Tools doc created (permissions: 600)${NC}"
 
 # ============================================
 # Configure Agent Framework
@@ -339,14 +358,13 @@ if [[ "$AGENT_CHOICE" == "1" ]]; then
     # === HERMES CONFIG ===
     echo -e "${CYAN}  Configuring Hermes Agent...${NC}"
 
-    # Set custom provider via hermes config
     hermes config set custom_providers.myfurina.name "Myfurina Provider" 2>/dev/null || true
     hermes config set custom_providers.myfurina.base_url "$BASE_URL" 2>/dev/null || true
     hermes config set custom_providers.myfurina.api_key "$API_KEY" 2>/dev/null || true
     hermes config set custom_providers.myfurina.model "$MODEL_NAME" 2>/dev/null || true
     hermes config set main_provider "custom:myfurina" 2>/dev/null || true
 
-    # Also set in .env for tool access
+    # Set in .env with secure permissions
     cat >> "$HOME/.hermes/.env" << EOF
 
 # Myfurina Configuration
@@ -354,21 +372,29 @@ OPENAI_API_KEY=$API_KEY
 OPENAI_BASE_URL=$BASE_URL
 TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
 EOF
+    chmod 600 "$HOME/.hermes/.env"
 
-    # Configure Telegram in config.yaml
+    # Configure Telegram
     hermes config set channels.telegram.enabled true 2>/dev/null || true
     hermes config set channels.telegram.bot_token "$TELEGRAM_BOT_TOKEN" 2>/dev/null || true
     hermes config set channels.telegram.allowed_users "[\"$TELEGRAM_CHAT_ID\"]" 2>/dev/null || true
 
+    # Restrict config.yaml permissions
+    chmod 600 "$HOME/.hermes/config.yaml" 2>/dev/null || true
+
     echo -e "${GREEN}  ✓ Hermes configured with custom provider${NC}"
     echo -e "${GREEN}  ✓ Telegram channel configured${NC}"
+    echo -e "${GREEN}  ✓ Config files secured (chmod 600)${NC}"
 
 else
     # === OPENCLAW CONFIG ===
     echo -e "${CYAN}  Configuring OpenClaw...${NC}"
 
-    # Custom providers MUST use config patch (not config set!)
-    cat > /tmp/openclaw-patch.json << EOF
+    # SECURITY: Use secure temp file instead of hardcoded /tmp path
+    OPENCLAW_PATCH=$(mktemp /tmp/openclaw-patch-XXXXXX.json)
+    chmod 600 "$OPENCLAW_PATCH"
+
+    cat > "$OPENCLAW_PATCH" << EOF
 {
   "models": {
     "providers": {
@@ -390,16 +416,17 @@ else
 }
 EOF
 
-    openclaw config patch --file /tmp/openclaw-patch.json 2>/dev/null || {
+    openclaw config patch --file "$OPENCLAW_PATCH" 2>/dev/null || {
         echo -e "${YELLOW}  Warning: config patch failed, trying alternative...${NC}"
-        # Fallback: direct config file edit
         OPENCLAW_CONFIG="$HOME/.openclaw/openclaw.json"
         mkdir -p "$HOME/.openclaw"
         if [[ ! -f "$OPENCLAW_CONFIG" ]]; then
             echo '{}' > "$OPENCLAW_CONFIG"
         fi
     }
-    rm -f /tmp/openclaw-patch.json
+
+    # SECURITY: Securely wipe and remove temp file
+    shred -u "$OPENCLAW_PATCH" 2>/dev/null || rm -f "$OPENCLAW_PATCH"
 
     # Set gateway mode
     openclaw config set gateway.mode local 2>/dev/null || true
@@ -408,20 +435,25 @@ EOF
     openclaw config set telegram.botToken "$TELEGRAM_BOT_TOKEN" 2>/dev/null || true
     openclaw config set telegram.chatId "$TELEGRAM_CHAT_ID" 2>/dev/null || true
 
-    # Also export env vars for the gateway
+    # Save .env with secure permissions
     cat > "$INSTALL_DIR/.env" << EOF
 OPENAI_API_KEY=$API_KEY
 OPENAI_BASE_URL=$BASE_URL
 TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID
 EOF
+    chmod 600 "$INSTALL_DIR/.env"
+
+    # Restrict OpenClaw config permissions
+    chmod 600 "$HOME/.openclaw/openclaw.json" 2>/dev/null || true
 
     echo -e "${GREEN}  ✓ OpenClaw configured with custom provider${NC}"
     echo -e "${GREEN}  ✓ Telegram configured${NC}"
+    echo -e "${GREEN}  ✓ Config files secured (chmod 600)${NC}"
 fi
 
 # ============================================
-# Create Start Script
+# Create Start Script (no secrets embedded)
 # ============================================
 cat > "$INSTALL_DIR/start.sh" << 'STARTEOF'
 #!/bin/bash
@@ -512,6 +544,18 @@ fi
 chmod +x "$INSTALL_DIR/stop.sh"
 
 echo -e "${GREEN}  ✓ Start/Stop scripts created${NC}"
+echo ""
+
+# ============================================
+# Security Summary
+# ============================================
+echo -e "${YELLOW}  Security measures applied:${NC}"
+echo -e "    • config.env — chmod 600 (owner read/write only)"
+echo -e "    • .env — chmod 600 (owner read/write only)"
+echo -e "    • ~/.superagent/ — chmod 700 (owner access only)"
+echo -e "    • brain/ — chmod 700 (owner access only)"
+echo -e "    • .gitignore — prevents accidental secret commits"
+echo -e "    • Temp patch file — securely wiped after use"
 echo ""
 
 # ============================================
