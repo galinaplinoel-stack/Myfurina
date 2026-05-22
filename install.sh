@@ -1,329 +1,374 @@
 #!/bin/bash
-
-# ============================================
-# Myfurina Installer
-# One-click setup for AI Agent + OpenClaw
-# ============================================
-
 set -e
+
+# ============================================
+# Myfurina — One-click AI Agent Installer
+# Supports: Hermes Agent & OpenClaw
+# ============================================
 
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+MAGENTA='\033[0;35m'
+BOLD='\033[1m'
+NC='\033[0m'
 
-# Logo
-echo -e "${CYAN}"
-cat << "EOF"
-  ____  _   _ ____  _____     _    ____ ___ _   _  ____
- / ___|| | | |  _ \| ____|   / \  |  _ \_ _| \ | |/ ___|
- \___ \| | | | |_) |  _|    / _ \ | |_) | ||  \| | |  _
-  ___) | |_| |  __/| |___  / ___ \|  __/| || |\  | |_| |
- |____/ \___/|_|   |_____|_/   \_\_|  |___|_| \_|\____|
+INSTALL_DIR="$HOME/.superagent"
+BRAIN_DIR="$INSTALL_DIR/brain"
+SKILLS_DIR="$BRAIN_DIR/skills"
+MEMORY_DIR="$BRAIN_DIR/memory"
 
-  Elite AI Agent Installer v2.0
-EOF
+# ============================================
+# Banner
+# ============================================
+echo -e "${MAGENTA}${BOLD}"
+echo "  ███╗   ███╗██╗   ██╗███████╗██╗   ██╗██████╗ ██╗███╗   ██╗ █████╗ "
+echo "  ████╗ ████║╚██╗ ██╔╝██╔════╝██║   ██║██╔══██╗██║████╗  ██║██╔══██╗"
+echo "  ██╔████╔██║ ╚████╔╝ █████╗  ██║   ██║██████╔╝██║██╔██╗ ██║███████║"
+echo "  ██║╚██╔╝██║  ╚██╔╝  ██╔══╝  ██║   ██║██╔══██╗██║██║╚██╗██║██╔══██║"
+echo "  ██║ ╚═╝ ██║   ██║   ██║     ╚██████╔╝██║  ██║██║██║ ╚████║██║  ██║"
+echo "  ╚═╝     ╚═╝   ╚═╝   ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝"
 echo -e "${NC}"
-
-echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}  Welcome to Myfurina Installer!${NC}"
-echo -e "${BLUE}========================================${NC}"
+echo -e "${CYAN}  One-click installer for AI Agent + Brain System${NC}"
 echo ""
 
 # ============================================
 # System Check
 # ============================================
-echo -e "${YELLOW}[1/5] Checking system...${NC}"
+echo -e "${YELLOW}[1/8] System check...${NC}"
 
-# Check OS
-if [[ "$OSTYPE" != "linux-gnu"* ]]; then
+if [[ "$(uname)" != "Linux" ]]; then
     echo -e "${RED}Error: This installer only supports Linux.${NC}"
     exit 1
 fi
 
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then
+if [[ $EUID -ne 0 ]]; then
     echo -e "${RED}Error: Please run as root (sudo ./install.sh)${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✓ System check passed${NC}"
+echo -e "${GREEN}  ✓ Linux detected${NC}"
+echo -e "${GREEN}  ✓ Running as root${NC}"
+echo ""
+
+# ============================================
+# Choose Agent Framework
+# ============================================
+echo -e "${YELLOW}[2/8] Choose your AI agent framework:${NC}"
+echo ""
+echo -e "  ${BOLD}1)${NC} ${CYAN}Hermes Agent${NC} — by Nous Research"
+echo -e "     • Skills system, persistent memory, multi-platform gateway"
+echo -e "     • 20+ providers, profiles, cron jobs, MCP servers"
+echo -e "     • Config: ~/.hermes/config.yaml (YAML)"
+echo ""
+echo -e "  ${BOLD}2)${NC} ${CYAN}OpenClaw${NC} — AI agent framework"
+echo -e "     • Gateway-based, tool calling, session management"
+echo -e "     • 30+ built-in providers, custom provider support"
+echo -e "     • Config: ~/.openclaw/openclaw.json (JSON)"
+echo ""
+
+AGENT_CHOICE=""
+while [[ "$AGENT_CHOICE" != "1" && "$AGENT_CHOICE" != "2" ]]; do
+    echo -e -n "${CYAN}  Enter choice (1 or 2): ${NC}"
+    read -r AGENT_CHOICE
+done
+
+if [[ "$AGENT_CHOICE" == "1" ]]; then
+    AGENT_NAME="Hermes"
+    echo -e "${GREEN}  ✓ Selected: Hermes Agent${NC}"
+else
+    AGENT_NAME="OpenClaw"
+    echo -e "${GREEN}  ✓ Selected: OpenClaw${NC}"
+fi
 echo ""
 
 # ============================================
 # Install Dependencies
 # ============================================
-echo -e "${YELLOW}[2/5] Checking dependencies...${NC}"
+echo -e "${YELLOW}[3/8] Installing dependencies...${NC}"
 
-# Update package list
-apt-get update -qq
-
-# Check and install essential packages
 PACKAGES_TO_INSTALL=""
-
 for pkg in curl wget git; do
     if ! command -v $pkg &> /dev/null; then
         PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL $pkg"
     else
-        echo -e "${GREEN}✓ $pkg already installed${NC}"
+        echo -e "${GREEN}  ✓ $pkg already installed${NC}"
     fi
 done
 
-# Check Node.js
-if ! command -v node &> /dev/null; then
-    PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL nodejs"
-else
-    echo -e "${GREEN}✓ Node.js already installed ($(node --version))${NC}"
+if [[ -n "$PACKAGES_TO_INSTALL" ]]; then
+    apt-get update -qq
+    apt-get install -y -qq $PACKAGES_TO_INSTALL > /dev/null 2>&1
+    echo -e "${GREEN}  ✓ Installed:$PACKAGES_TO_INSTALL${NC}"
 fi
 
-# Check npm
-if ! command -v npm &> /dev/null; then
-    PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL npm"
-else
-    echo -e "${GREEN}✓ npm already installed ($(npm --version))${NC}"
-fi
-
-# Install missing packages
-if [ -n "$PACKAGES_TO_INSTALL" ]; then
-    echo -e "${YELLOW}Installing:$PACKAGES_TO_INSTALL${NC}"
-    apt-get install -y $PACKAGES_TO_INSTALL || {
-        echo -e "${YELLOW}Warning: Some packages failed to install, but continuing...${NC}"
-    }
-fi
-
-echo -e "${GREEN}✓ Dependencies ready${NC}"
-echo ""
-
-# ============================================
-# Install OpenClaw
-# ============================================
-echo -e "${YELLOW}[3/5] Installing OpenClaw...${NC}"
-
-# Create installation directory
-INSTALL_DIR="$HOME/.superagent"
-mkdir -p "$INSTALL_DIR"
-
-# Check if OpenClaw is already installed
-if command -v openclaw &> /dev/null; then
-    echo -e "${GREEN}✓ OpenClaw already installed ($(openclaw --version 2>/dev/null || echo 'version unknown'))${NC}"
-    AGENT_TYPE="openclaw"
-else
-    echo -e "${YELLOW}Installing OpenClaw...${NC}"
-    npm install -g openclaw 2>/dev/null || {
-        echo -e "${RED}Error: OpenClaw installation failed${NC}"
-        echo -e "${YELLOW}Trying alternative installation method...${NC}"
-        # Clone from GitHub
-        git clone https://github.com/openclaw/openclaw.git "$INSTALL_DIR/openclaw" 2>/dev/null || {
-            echo -e "${RED}Error: Could not install OpenClaw${NC}"
-            exit 1
-        }
-    }
-    
-    # Verify installation
-    if command -v openclaw &> /dev/null; then
-        echo -e "${GREEN}✓ OpenClaw installed successfully${NC}"
-        AGENT_TYPE="openclaw"
+# Node.js (needed for OpenClaw, optional for Hermes)
+if [[ "$AGENT_CHOICE" == "2" ]]; then
+    if ! command -v node &> /dev/null; then
+        echo -e "${CYAN}  Installing Node.js...${NC}"
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
+        apt-get install -y -qq nodejs > /dev/null 2>&1
+        echo -e "${GREEN}  ✓ Node.js installed${NC}"
     else
-        echo -e "${RED}Error: OpenClaw not found after installation${NC}"
-        exit 1
+        echo -e "${GREEN}  ✓ Node.js already installed${NC}"
+    fi
+
+    if ! command -v npm &> /dev/null; then
+        echo -e "${CYAN}  Installing npm...${NC}"
+        apt-get install -y -qq npm > /dev/null 2>&1
+        echo -e "${GREEN}  ✓ npm installed${NC}"
+    else
+        echo -e "${GREEN}  ✓ npm already installed${NC}"
+    fi
+else
+    # Hermes also needs Node.js for some features
+    if ! command -v node &> /dev/null; then
+        echo -e "${CYAN}  Installing Node.js (for gateway features)...${NC}"
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
+        apt-get install -y -qq nodejs > /dev/null 2>&1
+        echo -e "${GREEN}  ✓ Node.js installed${NC}"
+    else
+        echo -e "${GREEN}  ✓ Node.js already installed${NC}"
     fi
 fi
-
-echo -e "${GREEN}✓ Agent framework ready ($AGENT_TYPE)${NC}"
 echo ""
 
 # ============================================
-# Setup Myfurina Brain
+# Install Agent Framework
 # ============================================
-echo -e "${YELLOW}[4/5] Setting up Myfurina brain...${NC}"
+echo -e "${YELLOW}[4/8] Installing $AGENT_NAME...${NC}"
 
-# Copy brain files
-BRAIN_DIR="$INSTALL_DIR/brain"
-mkdir -p "$BRAIN_DIR"
-mkdir -p "$BRAIN_DIR/skills"
-mkdir -p "$BRAIN_DIR/memory"
-
-# Copy SOUL.md
-if [ -f "brain/SOUL.md" ]; then
-    cp brain/SOUL.md "$BRAIN_DIR/SOUL.md"
-    echo -e "${GREEN}✓ SOUL.md copied${NC}"
+if [[ "$AGENT_CHOICE" == "1" ]]; then
+    # Install Hermes Agent
+    if command -v hermes &> /dev/null; then
+        echo -e "${GREEN}  ✓ Hermes already installed${NC}"
+    else
+        echo -e "${CYAN}  Installing Hermes Agent...${NC}"
+        curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+        if command -v hermes &> /dev/null; then
+            echo -e "${GREEN}  ✓ Hermes installed successfully${NC}"
+        else
+            echo -e "${RED}  ✗ Hermes installation failed${NC}"
+            echo -e "${YELLOW}  Try manually: curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash${NC}"
+            exit 1
+        fi
+    fi
 else
-    echo -e "${RED}Error: brain/SOUL.md not found${NC}"
-    exit 1
+    # Install OpenClaw
+    if command -v openclaw &> /dev/null; then
+        echo -e "${GREEN}  ✓ OpenClaw already installed${NC}"
+    else
+        echo -e "${CYAN}  Installing OpenClaw via npm...${NC}"
+        npm install -g openclaw 2>/dev/null || {
+            echo -e "${YELLOW}  npm install failed, trying from source...${NC}"
+            cd /tmp
+            git clone https://github.com/openclaw/openclaw.git 2>/dev/null || true
+            cd openclaw && npm install && npm link
+            cd /tmp && rm -rf openclaw
+        }
+        if command -v openclaw &> /dev/null; then
+            echo -e "${GREEN}  ✓ OpenClaw installed successfully${NC}"
+        else
+            echo -e "${RED}  ✗ OpenClaw installation failed${NC}"
+            echo -e "${YELLOW}  Try manually: npm install -g openclaw${NC}"
+            exit 1
+        fi
+    fi
 fi
-
-# Copy skill files (if they exist)
-if [ -d "skills" ]; then
-    cp -r skills/* "$BRAIN_DIR/skills/" 2>/dev/null || true
-    echo -e "${GREEN}✓ Skills copied${NC}"
-fi
-
-# Create AGENTS.md
-cat > "$BRAIN_DIR/AGENTS.md" << 'EOF'
-# AGENTS.md — Core Brain & Router
-# Auto-injected every session.
-
----
-
-## ALWAYS LOAD ON SESSION START
-
-Read brain/SOUL.md — this is the constitution.
-Read brain/MEMORY.md for long-term context.
-Read brain/memory/[today's date].md if exists.
-
----
-
-## SKILL ROUTER
-
-Match user intent to skill modules. Load on demand.
-
-```
-monetize / business / income / sell / cuan  → skills/m1.md
-server / VPS / deploy / linux / docker     → skills/m2.md
-content / caption / viral / script         → skills/m3.md
-bot / automation / cron / webhook          → skills/m4.md
-data / spreadsheet / analytics / report    → skills/m5.md
-API / integration / REST / SDK             → skills/m6.md
-AI / prompt / agent / LLM / model         → skills/m7.md
-file / PDF / DOCX / generate / export     → skills/m8.md
-website / landing / frontend / React       → skills/m9.md
-audit / improve / review agent             → skills/x1.md
-complex / strategy / multi-step            → skills/x2.md
-error / bug / not working / debug          → skills/x3.md
-```
-
----
-
-## CORE RULES
-
-**R1 — Execute first**
-Deliver working output first. Explain after.
-
-**R2 — Never dead-end**
-Cannot do X → explain why → offer alternative.
-
-**R3 — Memory write triggers**
-Write to memory when: decision made, preference revealed, project context established.
-
-**R4 — Output format**
-[OUTPUT] → deliverable
-[NEXT STEP] → immediate action
-[🔧 UPGRADE] → one line improvement (when meaningful)
-EOF
-echo -e "${GREEN}✓ AGENTS.md created${NC}"
-
-# Create MEMORY.md
-cat > "$BRAIN_DIR/MEMORY.md" << 'EOF'
-# MEMORY.md — Long-term Context
-
----
-
-## Environment
-- OS: Linux
-- Installed: [tools will be logged here]
-
-## Preferences
-- [User preferences will be logged here]
-
-## Lessons Learned
-- [Important lessons will be logged here]
-EOF
-echo -e "${GREEN}✓ MEMORY.md created${NC}"
-
-# Create TOOLS.md
-cat > "$BRAIN_DIR/TOOLS.md" << 'EOF'
-# TOOLS.md — Available Tools
-
-## Core Tools
-- Terminal (bash, npm, git, docker)
-- File System (read, write, edit)
-- Web (browser, HTTP, scraping)
-- GitHub (repos, PR, issues)
-
-## AI Provider
-- Provider: [configured during setup]
-- Model: [configured during setup]
-- Base URL: [configured during setup]
-
-## Messaging
-- Telegram Bot: [configured]
-- Chat ID: [configured]
-
-## Deployment
-- Vercel, Docker, VPS
-EOF
-echo -e "${GREEN}✓ TOOLS.md created${NC}"
-
-echo -e "${GREEN}✓ Myfurina brain configured${NC}"
 echo ""
 
 # ============================================
-# Configure API & Model
+# Collect API Configuration
 # ============================================
-echo -e "${YELLOW}[5/5] Configuring API & Model...${NC}"
+echo -e "${YELLOW}[5/8] API Configuration${NC}"
 echo ""
 
-# Get API Key
-echo -e "${CYAN}Enter your API Key:${NC}"
+# API Key
+echo -e -n "${CYAN}  Enter your API Key: ${NC}"
 read -r API_KEY
+while [[ -z "$API_KEY" ]]; do
+    echo -e "${RED}  API Key is required!${NC}"
+    echo -e -n "${CYAN}  Enter your API Key: ${NC}"
+    read -r API_KEY
+done
 
-# Get Base URL
-echo -e "${CYAN}Enter Base URL (e.g., https://api.openai.com/v1, https://openrouter.ai/api/v1):${NC}"
+# Base URL
+echo -e -n "${CYAN}  Enter Base URL (default: https://api.openai.com/v1): ${NC}"
 read -r BASE_URL
 BASE_URL=${BASE_URL:-"https://api.openai.com/v1"}
 
-# Get Model
-echo -e "${CYAN}Enter Model name (e.g., gpt-4o, claude-sonnet-4, deepseek-chat):${NC}"
+# Model
+echo -e -n "${CYAN}  Enter Model name (e.g., gpt-4o, claude-sonnet-4): ${NC}"
 read -r MODEL_NAME
+while [[ -z "$MODEL_NAME" ]]; do
+    echo -e "${RED}  Model name is required!${NC}"
+    echo -e -n "${CYAN}  Enter Model name: ${NC}"
+    read -r MODEL_NAME
+done
 
-# Get Telegram Bot Token (required)
-echo -e "${CYAN}Enter your Telegram Bot Token:${NC}"
+echo ""
+echo -e "${GREEN}  ✓ API Key: ${API_KEY:0:8}...${NC}"
+echo -e "${GREEN}  ✓ Base URL: $BASE_URL${NC}"
+echo -e "${GREEN}  ✓ Model: $MODEL_NAME${NC}"
+echo ""
+
+# ============================================
+# Telegram Integration
+# ============================================
+echo -e "${YELLOW}[6/8] Telegram Integration${NC}"
+echo ""
+
+echo -e -n "${CYAN}  Enter Telegram Bot Token (required): ${NC}"
 read -r TELEGRAM_BOT_TOKEN
-
-# Validate not empty
-while [ -z "$TELEGRAM_BOT_TOKEN" ]; do
-    echo -e "${RED}Telegram Bot Token is required!${NC}"
-    echo -e "${CYAN}Enter your Telegram Bot Token:${NC}"
+while [[ -z "$TELEGRAM_BOT_TOKEN" ]]; do
+    echo -e "${RED}  Telegram Bot Token is required!${NC}"
+    echo -e -n "${CYAN}  Enter Telegram Bot Token: ${NC}"
     read -r TELEGRAM_BOT_TOKEN
 done
 
-# Get Telegram Chat ID (required)
-echo -e "${CYAN}Enter your Telegram Chat ID:${NC}"
+echo -e -n "${CYAN}  Enter your Telegram Chat ID (required): ${NC}"
 read -r TELEGRAM_CHAT_ID
-
-# Validate not empty
-while [ -z "$TELEGRAM_CHAT_ID" ]; do
-    echo -e "${RED}Telegram Chat ID is required!${NC}"
-    echo -e "${CYAN}Enter your Telegram Chat ID:${NC}"
+while [[ -z "$TELEGRAM_CHAT_ID" ]]; do
+    echo -e "${RED}  Telegram Chat ID is required!${NC}"
+    echo -e -n "${CYAN}  Enter your Telegram Chat ID: ${NC}"
     read -r TELEGRAM_CHAT_ID
 done
 
-# Create config file for Myfurina
+echo ""
+echo -e "${GREEN}  ✓ Bot Token: ${TELEGRAM_BOT_TOKEN:0:10}...${NC}"
+echo -e "${GREEN}  ✓ Chat ID: $TELEGRAM_CHAT_ID${NC}"
+echo ""
+
+# ============================================
+# User Profile
+# ============================================
+echo -e "${YELLOW}[7/8] User Profile${NC}"
+echo ""
+
+echo -e -n "${CYAN}  Enter your name: ${NC}"
+read -r USER_NAME
+USER_NAME=${USER_NAME:-"User"}
+
+echo -e -n "${CYAN}  Enter your username: ${NC}"
+read -r USER_USERNAME
+USER_USERNAME=${USER_USERNAME:-"user"}
+
+echo -e -n "${CYAN}  Enter preferred language (default: Bahasa Indonesia): ${NC}"
+read -r USER_LANG
+USER_LANG=${USER_LANG:-"Bahasa Indonesia"}
+
+echo -e -n "${CYAN}  Communication style (default: direct and casual): ${NC}"
+read -r USER_STYLE
+USER_STYLE=${USER_STYLE:-"direct and casual"}
+
+echo ""
+echo -e "${GREEN}  ✓ Name: $USER_NAME${NC}"
+echo -e "${GREEN}  ✓ Language: $USER_LANG${NC}"
+echo ""
+
+# ============================================
+# Setup Brain & Configure Agent
+# ============================================
+echo -e "${YELLOW}[8/8] Setting up brain & configuring $AGENT_NAME...${NC}"
+
+# Create directories
+mkdir -p "$BRAIN_DIR" "$SKILLS_DIR" "$MEMORY_DIR"
+
+# Save config.env
 cat > "$INSTALL_DIR/config.env" << EOF
 # Myfurina Configuration
+# Agent: $AGENT_NAME
+# Generated: $(date)
+
 API_KEY=$API_KEY
 BASE_URL=$BASE_URL
 MODEL=$MODEL_NAME
-
-# Telegram Bot (required)
 TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID
+AGENT_FRAMEWORK=$AGENT_NAME
 EOF
-echo -e "${GREEN}✓ Configuration saved${NC}"
+echo -e "${GREEN}  ✓ Config saved to $INSTALL_DIR/config.env${NC}"
+
+# Create USER.md
+cat > "$BRAIN_DIR/USER.md" << EOF
+# USER.md — Owner Profile
+
+**Name**: $USER_NAME
+**Username**: $USER_USERNAME
+**Language**: $USER_LANG
+**Style**: $USER_STYLE
+EOF
+echo -e "${GREEN}  ✓ User profile created${NC}"
+
+# Create MEMORY.md
+cat > "$BRAIN_DIR/MEMORY.md" << EOF
+# MEMORY.md — Long-term Context
+
+## System
+- Agent: $AGENT_NAME
+- Model: $MODEL_NAME
+- Language: $USER_LANG
+- Installed: $(date)
+
+## User Preferences
+- Communication style: $USER_STYLE
+EOF
+echo -e "${GREEN}  ✓ Memory initialized${NC}"
+
+# Create TOOLS.md
+cat > "$BRAIN_DIR/TOOLS.md" << EOF
+# TOOLS.md — Available Tools
+
+## AI Provider
+- Framework: $AGENT_NAME
+- Model: $MODEL_NAME
+- Base URL: $BASE_URL
+
+## Messaging
+- Telegram Bot: ✓ Configured
+- Chat ID: $TELEGRAM_CHAT_ID
+EOF
+echo -e "${GREEN}  ✓ Tools doc created${NC}"
 
 # ============================================
-# Configure OpenClaw directly
+# Configure Agent Framework
 # ============================================
-echo -e "${YELLOW}Configuring OpenClaw with your API settings...${NC}"
+if [[ "$AGENT_CHOICE" == "1" ]]; then
+    # === HERMES CONFIG ===
+    echo -e "${CYAN}  Configuring Hermes Agent...${NC}"
 
-# Set gateway mode to local
-openclaw config set gateway.mode local 2>/dev/null || true
+    # Set custom provider via hermes config
+    hermes config set custom_providers.myfurina.name "Myfurina Provider" 2>/dev/null || true
+    hermes config set custom_providers.myfurina.base_url "$BASE_URL" 2>/dev/null || true
+    hermes config set custom_providers.myfurina.api_key "$API_KEY" 2>/dev/null || true
+    hermes config set custom_providers.myfurina.model "$MODEL_NAME" 2>/dev/null || true
+    hermes config set main_provider "custom:myfurina" 2>/dev/null || true
 
-# Create OpenClaw config patch file
-cat > /tmp/openclaw-patch.json << EOF
+    # Also set in .env for tool access
+    cat >> "$HOME/.hermes/.env" << EOF
+
+# Myfurina Configuration
+OPENAI_API_KEY=$API_KEY
+OPENAI_BASE_URL=$BASE_URL
+TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
+EOF
+
+    # Configure Telegram in config.yaml
+    hermes config set channels.telegram.enabled true 2>/dev/null || true
+    hermes config set channels.telegram.bot_token "$TELEGRAM_BOT_TOKEN" 2>/dev/null || true
+    hermes config set channels.telegram.allowed_users "[\"$TELEGRAM_CHAT_ID\"]" 2>/dev/null || true
+
+    echo -e "${GREEN}  ✓ Hermes configured with custom provider${NC}"
+    echo -e "${GREEN}  ✓ Telegram channel configured${NC}"
+
+else
+    # === OPENCLAW CONFIG ===
+    echo -e "${CYAN}  Configuring OpenClaw...${NC}"
+
+    # Custom providers MUST use config patch (not config set!)
+    cat > /tmp/openclaw-patch.json << EOF
 {
   "models": {
     "providers": {
@@ -345,234 +390,153 @@ cat > /tmp/openclaw-patch.json << EOF
 }
 EOF
 
-# Apply config patch
-openclaw config patch --file /tmp/openclaw-patch.json 2>/dev/null || {
-    echo -e "${YELLOW}Warning: OpenClaw config patch failed, but continuing...${NC}"
-}
+    openclaw config patch --file /tmp/openclaw-patch.json 2>/dev/null || {
+        echo -e "${YELLOW}  Warning: config patch failed, trying alternative...${NC}"
+        # Fallback: direct config file edit
+        OPENCLAW_CONFIG="$HOME/.openclaw/openclaw.json"
+        mkdir -p "$HOME/.openclaw"
+        if [[ ! -f "$OPENCLAW_CONFIG" ]]; then
+            echo '{}' > "$OPENCLAW_CONFIG"
+        fi
+    }
+    rm -f /tmp/openclaw-patch.json
 
-# Clean up temp file
-rm -f /tmp/openclaw-patch.json
+    # Set gateway mode
+    openclaw config set gateway.mode local 2>/dev/null || true
 
-echo -e "${GREEN}✓ OpenClaw configured${NC}"
+    # Set Telegram config
+    openclaw config set telegram.botToken "$TELEGRAM_BOT_TOKEN" 2>/dev/null || true
+    openclaw config set telegram.chatId "$TELEGRAM_CHAT_ID" 2>/dev/null || true
 
-# ============================================
-# Setup Telegram Channel & Owner
-# ============================================
-echo -e "${YELLOW}Setting up Telegram channel...${NC}"
-
-# Add Telegram channel with bot token
-openclaw channels add --channel telegram --token "$TELEGRAM_BOT_TOKEN" 2>/dev/null || {
-    echo -e "${YELLOW}Warning: Telegram channel setup failed, but continuing...${NC}"
-}
-
-# Configure owner allow from (auto-approve user)
-openclaw config set commands.ownerAllowFrom "telegram:$TELEGRAM_CHAT_ID" 2>/dev/null || {
-    echo -e "${YELLOW}Warning: Owner config failed, but continuing...${NC}"
-}
-
-# Bind Telegram to main agent
-openclaw agents bind --bind telegram 2>/dev/null || {
-    echo -e "${YELLOW}Warning: Agent binding failed, but continuing...${NC}"
-}
-
-echo -e "${GREEN}✓ Telegram configured & owner approved${NC}"
-
-# Update TOOLS.md with actual config
-sed -i "s|\[configured during setup\]|$MODEL_NAME|g" "$BRAIN_DIR/TOOLS.md"
-sed -i "s|\[configured if provided\]|✓ Configured|g" "$BRAIN_DIR/TOOLS.md" 2>/dev/null || true
-
-# Update provider info in TOOLS.md
-PROVIDER_NAME=$(echo "$BASE_URL" | sed -E 's|https?://([^/]+).*|\1|')
-sed -i "s|Provider: \[configured during setup\]|Provider: Custom ($PROVIDER_NAME)|g" "$BRAIN_DIR/TOOLS.md"
-sed -i "s|Base URL: \[configured during setup\]|Base URL: $BASE_URL|g" "$BRAIN_DIR/TOOLS.md"
-
-# Update Telegram config in TOOLS.md
-sed -i "s|\[configured\]|✓ Configured|g" "$BRAIN_DIR/TOOLS.md"
-
-echo ""
-
-# ============================================
-# Setup User Profile
-# ============================================
-echo -e "${YELLOW}Setting up your profile...${NC}"
-echo ""
-
-# Get user info
-echo -e "${CYAN}Enter your name:${NC}"
-read -r USER_NAME
-
-echo -e "${CYAN}Enter your username (for social media, etc):${NC}"
-read -r USER_USERNAME
-
-echo -e "${CYAN}Enter your preferred language (default: Bahasa Indonesia):${NC}"
-read -r USER_LANG
-USER_LANG=${USER_LANG:-"Bahasa Indonesia"}
-
-echo -e "${CYAN}Enter your communication style (e.g., direct, casual, formal):${NC}"
-read -r USER_STYLE
-USER_STYLE=${USER_STYLE:-"direct and casual"}
-
-echo -e "${CYAN}Enter your main projects (comma separated, or press enter to skip):${NC}"
-read -r USER_PROJECTS
-
-echo -e "${CYAN}Enter your main goals (comma separated, or press enter to skip):${NC}"
-read -r USER_GOALS
-
-# Create USER.md
-cat > "$BRAIN_DIR/USER.md" << EOF
-# USER.md — Owner Profile
-
-**Name**: $USER_NAME
-**Username**: $USER_USERNAME
-**Language**: $USER_LANG
-**Style**: $USER_STYLE
-
----
-
-## Communication Style
-- $USER_STYLE
-- Technical terms in English
-
-## Projects
-$(if [ -n "$USER_PROJECTS" ]; then
-    echo "$USER_PROJECTS" | tr ',' '\n' | sed 's/^/- /'
-else
-    echo "- [Add your projects here]"
-fi)
-
-## Goals
-$(if [ -n "$USER_GOALS" ]; then
-    echo "$USER_GOALS" | tr ',' '\n' | sed 's/^/- /'
-else
-    echo "- [Add your goals here]"
-fi)
+    # Also export env vars for the gateway
+    cat > "$INSTALL_DIR/.env" << EOF
+OPENAI_API_KEY=$API_KEY
+OPENAI_BASE_URL=$BASE_URL
+TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
+TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID
 EOF
-echo -e "${GREEN}✓ Profile created${NC}"
 
-# ============================================
-# Update SOUL.md with user's language
-# ============================================
-echo -e "${YELLOW}Updating SOUL.md with your language preference...${NC}"
-
-# Update Language Rules in SOUL.md
-sed -i "s|- \*\*Chat\*\*: \[USER_LANGUAGE\]|- **Chat**: $USER_LANG|g" "$BRAIN_DIR/SOUL.md"
-
-# Update Identity section based on language
-if [ "$USER_LANG" = "Bahasa Indonesia" ]; then
-    sed -i 's|- Use appropriate register for the specified language.|- Use casual register (aku/kamu) for Indonesian users.|g' "$BRAIN_DIR/SOUL.md"
-else
-    sed -i "s|- Use appropriate register for the specified language.|- Use appropriate register for $USER_LANG users.|g" "$BRAIN_DIR/SOUL.md"
+    echo -e "${GREEN}  ✓ OpenClaw configured with custom provider${NC}"
+    echo -e "${GREEN}  ✓ Telegram configured${NC}"
 fi
 
-echo -e "${GREEN}✓ SOUL.md updated with $USER_LANG${NC}"
-
-echo ""
-
 # ============================================
-# Create startup script
+# Create Start Script
 # ============================================
-cat > "$INSTALL_DIR/start.sh" << 'STARTUP'
+cat > "$INSTALL_DIR/start.sh" << 'STARTEOF'
 #!/bin/bash
+set -e
 
-# Load configuration
+# Load config
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.env"
 
-echo "Starting Myfurina..."
-echo ""
+# Colors
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-# Export environment variables for OpenClaw
+echo -e "${CYAN}Starting Myfurina...${NC}"
+echo -e "${GREEN}Agent: $AGENT_FRAMEWORK${NC}"
+echo -e "${GREEN}Model: $MODEL${NC}"
+STARTEOF
+
+if [[ "$AGENT_CHOICE" == "1" ]]; then
+    cat >> "$INSTALL_DIR/start.sh" << 'STARTEOF'
+
+# Export env vars for Hermes
 export OPENAI_API_KEY="$API_KEY"
 export OPENAI_BASE_URL="$BASE_URL"
 
-echo "Configuration:"
-echo "  API Key: ${API_KEY:0:10}..."
-echo "  Base URL: $BASE_URL"
-echo "  Model: $MODEL"
+# Start Hermes gateway
+echo -e "${CYAN}Starting Hermes gateway...${NC}"
+hermes gateway start
+echo -e "${GREEN}✓ Hermes gateway started${NC}"
 echo ""
-
-# Start OpenClaw
-if command -v openclaw &> /dev/null; then
-    echo "Starting OpenClaw gateway..."
-    openclaw gateway start
+echo -e "${GREEN}Myfurina is running!${NC}"
+echo -e "  Chat: Telegram"
+echo -e "  Stop: ~/.superagent/stop.sh"
+STARTEOF
 else
-    echo "Error: OpenClaw not found!"
-    exit 1
-fi
+    cat >> "$INSTALL_DIR/start.sh" << 'STARTEOF'
 
+# Export env vars for OpenClaw
+export OPENAI_API_KEY="$API_KEY"
+export OPENAI_BASE_URL="$BASE_URL"
+
+# Start OpenClaw gateway
+echo -e "${CYAN}Starting OpenClaw gateway...${NC}"
+openclaw gateway start
+echo -e "${GREEN}✓ OpenClaw gateway started${NC}"
 echo ""
-echo "Myfurina is ready! 🔥"
-STARTUP
+echo -e "${GREEN}Myfurina is running!${NC}"
+echo -e "  Chat: Telegram"
+echo -e "  Stop: ~/.superagent/stop.sh"
+STARTEOF
+fi
 
 chmod +x "$INSTALL_DIR/start.sh"
-echo -e "${GREEN}✓ Start script created${NC}"
 
-# Create stop script
-cat > "$INSTALL_DIR/stop.sh" << 'STOP'
+# ============================================
+# Create Stop Script
+# ============================================
+cat > "$INSTALL_DIR/stop.sh" << 'STOPEOF'
 #!/bin/bash
+set -e
+
+# Load config
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/config.env"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
 
 echo "Stopping Myfurina..."
+STOPEOF
 
-# Stop OpenClaw
-if command -v openclaw &> /dev/null; then
-    openclaw gateway stop 2>/dev/null || true
+if [[ "$AGENT_CHOICE" == "1" ]]; then
+    cat >> "$INSTALL_DIR/stop.sh" << 'STOPEOF'
+
+hermes gateway stop 2>/dev/null || true
+echo -e "${GREEN}✓ Hermes gateway stopped${NC}"
+STOPEOF
 else
-    echo "Warning: OpenClaw not found"
+    cat >> "$INSTALL_DIR/stop.sh" << 'STOPEOF'
+
+openclaw gateway stop 2>/dev/null || true
+echo -e "${GREEN}✓ OpenClaw gateway stopped${NC}"
+STOPEOF
 fi
 
-echo "✓ Myfurina stopped."
-STOP
-
 chmod +x "$INSTALL_DIR/stop.sh"
-echo -e "${GREEN}✓ Stop script created${NC}"
 
-echo ""
-
-# ============================================
-# Auto-Start Services
-# ============================================
-echo -e "${YELLOW}Starting services...${NC}"
-echo ""
-
-# Run start script
-"$INSTALL_DIR/start.sh"
-
+echo -e "${GREEN}  ✓ Start/Stop scripts created${NC}"
 echo ""
 
 # ============================================
-# Final Summary
+# Done!
 # ============================================
-echo -e "${BLUE}========================================${NC}"
-echo -e "${GREEN}  Installation Complete! 🔥${NC}"
-echo -e "${BLUE}========================================${NC}"
+echo -e "${MAGENTA}${BOLD}"
+echo "  ╔══════════════════════════════════════════════════════════╗"
+echo "  ║           🎉 Myfurina Installation Complete! 🎉          ║"
+echo "  ╚══════════════════════════════════════════════════════════╝"
+echo -e "${NC}"
 echo ""
-echo -e "${CYAN}Installation Directory:${NC} $INSTALL_DIR"
+echo -e "  ${BOLD}Agent Framework:${NC} $AGENT_NAME"
+echo -e "  ${BOLD}Model:${NC}          $MODEL_NAME"
+echo -e "  ${BOLD}Telegram:${NC}       Connected (Chat ID: $TELEGRAM_CHAT_ID)"
 echo ""
-echo -e "${CYAN}Your Profile:${NC}"
-echo -e "  Name: $USER_NAME"
-echo -e "  Username: $USER_USERNAME"
-echo -e "  Language: $USER_LANG"
-echo -e "  Style: $USER_STYLE"
+echo -e "  ${BOLD}Install Dir:${NC}    $INSTALL_DIR"
+echo -e "  ${BOLD}Brain Dir:${NC}      $BRAIN_DIR"
 echo ""
-echo -e "${CYAN}Configuration:${NC}"
-echo -e "  API Key: ${API_KEY:0:10}..."
-echo -e "  Base URL: $BASE_URL"
-echo -e "  Model: $MODEL_NAME"
+echo -e "  ${CYAN}Start:${NC}  ~/.superagent/start.sh"
+echo -e "  ${CYAN}Stop:${NC}   ~/.superagent/stop.sh"
+echo -e "  ${CYAN}Config:${NC} $INSTALL_DIR/config.env"
 echo ""
-echo -e "${CYAN}Services:${NC}"
-echo -e "  Agent: $AGENT_TYPE"
-echo -e "  Gateway: OpenClaw"
+echo -e "  ${BOLD}Edit Profile:${NC}   nano $BRAIN_DIR/USER.md"
+echo -e "  ${BOLD}Edit Memory:${NC}    nano $BRAIN_DIR/MEMORY.md"
+echo -e "  ${BOLD}Edit Tools:${NC}     nano $BRAIN_DIR/TOOLS.md"
 echo ""
-echo -e "${CYAN}Quick Commands:${NC}"
-echo -e "  ${GREEN}~/.superagent/start.sh${NC}    # Start services"
-echo -e "  ${GREEN}~/.superagent/stop.sh${NC}     # Stop services"
-echo -e "  ${GREEN}nano ~/.superagent/brain/USER.md${NC}  # Edit profile"
+echo -e "${GREEN}  Run: ~/.superagent/start.sh${NC}"
 echo ""
-echo -e "${YELLOW}What's Next:${NC}"
-echo -e "  1. Start chatting with your AI agent!"
-echo -e "  2. Edit ${GREEN}~/.superagent/brain/USER.md${NC} to update your profile"
-echo -e "  3. Add skills to ${GREEN}~/.superagent/brain/skills/${NC}"
-echo ""
-echo -e "${BLUE}========================================${NC}"
-echo -e "${CYAN}  Myfurina — Built for execution. 🔥${NC}"
-echo -e "${BLUE}========================================${NC}"
