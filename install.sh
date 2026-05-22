@@ -390,12 +390,25 @@ else
     # === OPENCLAW CONFIG ===
     echo -e "${CYAN}  Configuring OpenClaw...${NC}"
 
-    # SECURITY: Use secure temp file instead of hardcoded /tmp path
+    # Step 1: Setup gateway mode first (required before any config)
+    echo -e "${CYAN}  Setting up gateway...${NC}"
+    openclaw config set gateway.mode local 2>&1 || {
+        echo -e "${YELLOW}  Gateway mode set via config file${NC}"
+    }
+
+    # Step 2: Create comprehensive config patch with ALL settings
+    # This includes models, gateway, and telegram in one go
     OPENCLAW_PATCH=$(mktemp /tmp/openclaw-patch-XXXXXX.json)
     chmod 600 "$OPENCLAW_PATCH"
 
     cat > "$OPENCLAW_PATCH" << EOF
 {
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token"
+    }
+  },
   "models": {
     "providers": {
       "custom": {
@@ -412,31 +425,69 @@ else
         ]
       }
     }
+  },
+  "telegram": {
+    "botToken": "$TELEGRAM_BOT_TOKEN",
+    "chatId": "$TELEGRAM_CHAT_ID",
+    "enabled": true
   }
 }
 EOF
 
-    openclaw config patch --file "$OPENCLAW_PATCH" 2>/dev/null || {
-        echo -e "${YELLOW}  Warning: config patch failed, trying alternative...${NC}"
+    echo -e "${CYAN}  Applying config patch...${NC}"
+    if openclaw config patch --file "$OPENCLAW_PATCH" 2>&1; then
+        echo -e "${GREEN}  ✓ Config patch applied successfully${NC}"
+    else
+        echo -e "${YELLOW}  Config patch had warnings, checking config file...${NC}"
+        # Verify config file exists
         OPENCLAW_CONFIG="$HOME/.openclaw/openclaw.json"
-        mkdir -p "$HOME/.openclaw"
-        if [[ ! -f "$OPENCLAW_CONFIG" ]]; then
-            echo '{}' > "$OPENCLAW_CONFIG"
-        fi
+        if [[ -f "$OPENCLAW_CONFIG" ]]; then
+            echo -e "${GREEN}  ✓ Config file exists at $OPENCLAW_CONFIG${NC}"
+        else
+            echo -e "${RED}  ✗ Config file not found, creating manually...${NC}"
+            mkdir -p "$HOME/.openclaw"
+            cat > "$OPENCLAW_CONFIG" << EOF
+{
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token"
     }
+  },
+  "models": {
+    "providers": {
+      "custom": {
+        "baseUrl": "$BASE_URL",
+        "apiKey": "$API_KEY",
+        "models": [
+          {
+            "id": "$MODEL_NAME",
+            "name": "$MODEL_NAME",
+            "api": "openai-completions",
+            "contextWindow": 128000,
+            "maxTokens": 8192
+          }
+        ]
+      }
+    }
+  },
+  "telegram": {
+    "botToken": "$TELEGRAM_BOT_TOKEN",
+    "chatId": "$TELEGRAM_CHAT_ID",
+    "enabled": true
+  }
+}
+EOF
+        fi
+    fi
 
     # SECURITY: Securely wipe and remove temp file
     shred -u "$OPENCLAW_PATCH" 2>/dev/null || rm -f "$OPENCLAW_PATCH"
 
-    # Set gateway mode
-    openclaw config set gateway.mode local 2>/dev/null || true
-
-    # Set Telegram config
-    openclaw config set telegram.botToken "$TELEGRAM_BOT_TOKEN" 2>/dev/null || true
-    openclaw config set telegram.chatId "$TELEGRAM_CHAT_ID" 2>/dev/null || true
-
-    # Save .env with secure permissions
+    # Step 3: Save .env with secure permissions
     cat > "$INSTALL_DIR/.env" << EOF
+# OpenClaw Environment Variables
+# These are exported by start.sh before launching the gateway
 OPENAI_API_KEY=$API_KEY
 OPENAI_BASE_URL=$BASE_URL
 TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
@@ -444,7 +495,7 @@ TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID
 EOF
     chmod 600 "$INSTALL_DIR/.env"
 
-    # Restrict OpenClaw config permissions
+    # Step 4: Restrict OpenClaw config permissions
     chmod 600 "$HOME/.openclaw/openclaw.json" 2>/dev/null || true
 
     echo -e "${GREEN}  ✓ OpenClaw configured with custom provider${NC}"
@@ -466,6 +517,7 @@ source "$SCRIPT_DIR/config.env"
 # Colors
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${CYAN}Starting Myfurina...${NC}"
@@ -495,6 +547,22 @@ else
 # Export env vars for OpenClaw
 export OPENAI_API_KEY="$API_KEY"
 export OPENAI_BASE_URL="$BASE_URL"
+export TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"
+export TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"
+
+# Verify OpenClaw is installed
+if ! command -v openclaw &> /dev/null; then
+    echo -e "${RED}Error: openclaw command not found${NC}"
+    echo -e "${YELLOW}Try: npm install -g openclaw${NC}"
+    exit 1
+fi
+
+# Verify config exists
+if [[ ! -f "$HOME/.openclaw/openclaw.json" ]]; then
+    echo -e "${RED}Error: OpenClaw config not found at ~/.openclaw/openclaw.json${NC}"
+    echo -e "${YELLOW}Re-run the installer or create config manually${NC}"
+    exit 1
+fi
 
 # Start OpenClaw gateway
 echo -e "${CYAN}Starting OpenClaw gateway...${NC}"
@@ -582,5 +650,9 @@ echo -e "  ${BOLD}Edit Profile:${NC}   nano $BRAIN_DIR/USER.md"
 echo -e "  ${BOLD}Edit Memory:${NC}    nano $BRAIN_DIR/MEMORY.md"
 echo -e "  ${BOLD}Edit Tools:${NC}     nano $BRAIN_DIR/TOOLS.md"
 echo ""
+if [[ "$AGENT_CHOICE" == "2" ]]; then
+    echo -e "  ${YELLOW}OpenClaw Config:${NC} $HOME/.openclaw/openclaw.json"
+    echo ""
+fi
 echo -e "${GREEN}  Run: ~/.superagent/start.sh${NC}"
 echo ""
