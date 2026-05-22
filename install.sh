@@ -104,33 +104,22 @@ if [[ -n "$PACKAGES_TO_INSTALL" ]]; then
     echo -e "${GREEN}  ✓ Installed:$PACKAGES_TO_INSTALL${NC}"
 fi
 
-# Node.js (needed for OpenClaw, optional for Hermes)
-if [[ "$AGENT_CHOICE" == "2" ]]; then
-    if ! command -v node &> /dev/null; then
-        echo -e "${CYAN}  Installing Node.js...${NC}"
-        curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
-        apt-get install -y -qq nodejs > /dev/null 2>&1
-        echo -e "${GREEN}  ✓ Node.js installed${NC}"
-    else
-        echo -e "${GREEN}  ✓ Node.js already installed${NC}"
-    fi
-
-    if ! command -v npm &> /dev/null; then
-        echo -e "${CYAN}  Installing npm...${NC}"
-        apt-get install -y -qq npm > /dev/null 2>&1
-        echo -e "${GREEN}  ✓ npm installed${NC}"
-    else
-        echo -e "${GREEN}  ✓ npm already installed${NC}"
-    fi
+# Node.js
+if ! command -v node &> /dev/null; then
+    echo -e "${CYAN}  Installing Node.js...${NC}"
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
+    apt-get install -y -qq nodejs > /dev/null 2>&1
+    echo -e "${GREEN}  ✓ Node.js installed${NC}"
 else
-    if ! command -v node &> /dev/null; then
-        echo -e "${CYAN}  Installing Node.js (for gateway features)...${NC}"
-        curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
-        apt-get install -y -qq nodejs > /dev/null 2>&1
-        echo -e "${GREEN}  ✓ Node.js installed${NC}"
-    else
-        echo -e "${GREEN}  ✓ Node.js already installed${NC}"
-    fi
+    echo -e "${GREEN}  ✓ Node.js already installed${NC}"
+fi
+
+if ! command -v npm &> /dev/null; then
+    echo -e "${CYAN}  Installing npm...${NC}"
+    apt-get install -y -qq npm > /dev/null 2>&1
+    echo -e "${GREEN}  ✓ npm installed${NC}"
+else
+    echo -e "${GREEN}  ✓ npm already installed${NC}"
 fi
 echo ""
 
@@ -274,11 +263,8 @@ chmod 700 "$BRAIN_DIR"
 chmod 700 "$SKILLS_DIR"
 chmod 700 "$MEMORY_DIR"
 
-# ============================================
-# SECURITY: Create .gitignore to prevent accidental commits
-# ============================================
+# Create .gitignore
 cat > "$INSTALL_DIR/.gitignore" << 'EOF'
-# Security: Never commit these files
 config.env
 .env
 *.key
@@ -287,16 +273,10 @@ config.env
 brain/MEMORY.md
 brain/USER.md
 EOF
-echo -e "${GREEN}  ✓ .gitignore created (prevents accidental secret commits)${NC}"
+echo -e "${GREEN}  ✓ .gitignore created${NC}"
 
-# Save config.env with restricted permissions (owner-only read/write)
+# Save config.env
 cat > "$INSTALL_DIR/config.env" << EOF
-# Myfurina Configuration
-# Agent: $AGENT_NAME
-# Generated: $(date)
-# SECURITY: This file contains sensitive credentials
-# Permissions: 600 (owner read/write only)
-
 API_KEY=$API_KEY
 BASE_URL=$BASE_URL
 MODEL=$MODEL_NAME
@@ -305,9 +285,9 @@ TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID
 AGENT_FRAMEWORK=$AGENT_NAME
 EOF
 chmod 600 "$INSTALL_DIR/config.env"
-echo -e "${GREEN}  ✓ Config saved (permissions: 600 — owner only)${NC}"
+echo -e "${GREEN}  ✓ Config saved (chmod 600)${NC}"
 
-# Create USER.md with restricted permissions
+# Create brain files
 cat > "$BRAIN_DIR/USER.md" << EOF
 # USER.md — Owner Profile
 
@@ -317,9 +297,7 @@ cat > "$BRAIN_DIR/USER.md" << EOF
 **Style**: $USER_STYLE
 EOF
 chmod 600 "$BRAIN_DIR/USER.md"
-echo -e "${GREEN}  ✓ User profile created (permissions: 600)${NC}"
 
-# Create MEMORY.md with restricted permissions
 cat > "$BRAIN_DIR/MEMORY.md" << EOF
 # MEMORY.md — Long-term Context
 
@@ -328,14 +306,9 @@ cat > "$BRAIN_DIR/MEMORY.md" << EOF
 - Model: $MODEL_NAME
 - Language: $USER_LANG
 - Installed: $(date)
-
-## User Preferences
-- Communication style: $USER_STYLE
 EOF
 chmod 600 "$BRAIN_DIR/MEMORY.md"
-echo -e "${GREEN}  ✓ Memory initialized (permissions: 600)${NC}"
 
-# Create TOOLS.md (no secrets, but still restrict)
 cat > "$BRAIN_DIR/TOOLS.md" << EOF
 # TOOLS.md — Available Tools
 
@@ -345,11 +318,10 @@ cat > "$BRAIN_DIR/TOOLS.md" << EOF
 - Base URL: $BASE_URL
 
 ## Messaging
-- Telegram Bot: ✓ Configured
-- Chat ID: $TELEGRAM_CHAT_ID
+- Telegram: ✓ Configured
 EOF
 chmod 600 "$BRAIN_DIR/TOOLS.md"
-echo -e "${GREEN}  ✓ Tools doc created (permissions: 600)${NC}"
+echo -e "${GREEN}  ✓ Brain files created (chmod 600)${NC}"
 
 # ============================================
 # Configure Agent Framework
@@ -358,21 +330,18 @@ if [[ "$AGENT_CHOICE" == "1" ]]; then
     # === HERMES CONFIG ===
     echo -e "${CYAN}  Configuring Hermes Agent...${NC}"
 
-    # Step 1: Set custom provider via hermes config
-    echo -e "${CYAN}  Setting up custom provider...${NC}"
-    hermes config set custom_providers.myfurina.name "Myfurina Provider" 2>&1 || echo -e "${YELLOW}  Warning: custom_providers.name set failed${NC}"
-    hermes config set custom_providers.myfurina.base_url "$BASE_URL" 2>&1 || echo -e "${YELLOW}  Warning: custom_providers.base_url set failed${NC}"
-    hermes config set custom_providers.myfurina.api_key "$API_KEY" 2>&1 || echo -e "${YELLOW}  Warning: custom_providers.api_key set failed${NC}"
-    hermes config set custom_providers.myfurina.model "$MODEL_NAME" 2>&1 || echo -e "${YELLOW}  Warning: custom_providers.model set failed${NC}"
-    hermes config set main_provider "custom:myfurina" 2>&1 || echo -e "${YELLOW}  Warning: main_provider set failed${NC}"
+    # Step 1: Set custom provider
+    hermes config set custom_providers.myfurina.name "Myfurina Provider" 2>&1 || echo -e "${YELLOW}  Warning: provider name${NC}"
+    hermes config set custom_providers.myfurina.base_url "$BASE_URL" 2>&1 || echo -e "${YELLOW}  Warning: base_url${NC}"
+    hermes config set custom_providers.myfurina.api_key "$API_KEY" 2>&1 || echo -e "${YELLOW}  Warning: api_key${NC}"
+    hermes config set custom_providers.myfurina.model "$MODEL_NAME" 2>&1 || echo -e "${YELLOW}  Warning: model${NC}"
+    hermes config set main_provider "custom:myfurina" 2>&1 || echo -e "${YELLOW}  Warning: main_provider${NC}"
     echo -e "${GREEN}  ✓ Custom provider configured${NC}"
 
-    # Step 2: Create/ensure .env file exists with secure permissions
+    # Step 2: Create .env file
     HERMES_ENV="$HOME/.hermes/.env"
     mkdir -p "$HOME/.hermes"
     touch "$HERMES_ENV"
-
-    # Append Myfurina config (don't overwrite existing env)
     if ! grep -q "Myfurina Configuration" "$HERMES_ENV" 2>/dev/null; then
         cat >> "$HERMES_ENV" << EOF
 
@@ -383,10 +352,9 @@ TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
 EOF
     fi
     chmod 600 "$HERMES_ENV"
-    echo -e "${GREEN}  ✓ Environment variables configured${NC}"
+    echo -e "${GREEN}  ✓ Environment variables set${NC}"
 
-    # Step 3: Configure Telegram in config.yaml using Python (reliable YAML editing)
-    echo -e "${CYAN}  Configuring Telegram...${NC}"
+    # Step 3: Configure Telegram (CORRECT: top-level telegram: section)
     python3 << PYEOF
 import yaml
 import os
@@ -394,7 +362,6 @@ import os
 config_path = os.path.expanduser("~/.hermes/config.yaml")
 os.makedirs(os.path.dirname(config_path), exist_ok=True)
 
-# Load existing config or start fresh
 config = {}
 if os.path.exists(config_path):
     try:
@@ -403,87 +370,73 @@ if os.path.exists(config_path):
     except:
         config = {}
 
-# Set Telegram channel config
-if 'channels' not in config:
-    config['channels'] = {}
-config['channels']['telegram'] = {
-    'enabled': True,
+# Set TOP-LEVEL telegram section (not channels.telegram!)
+config['telegram'] = {
+    'allowed_chats': '$TELEGRAM_CHAT_ID',
     'bot_token': '$TELEGRAM_BOT_TOKEN',
-    'allowed_users': ['$TELEGRAM_CHAT_ID']
+    'enabled': True,
+    'channel_prompts': {},
+    'reactions': False
 }
 
-# Write back
+# Remove any wrong channels.telegram if it exists
+if 'channels' in config and 'telegram' in config.get('channels', {}):
+    del config['channels']['telegram']
+
 with open(config_path, 'w') as f:
     yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
 
-print("Telegram configured successfully")
+print("Telegram configured at top-level telegram: section")
 PYEOF
 
     if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}  ✓ Telegram channel configured${NC}"
+        echo -e "${GREEN}  ✓ Telegram configured (top-level telegram: section)${NC}"
     else
-        echo -e "${YELLOW}  Python YAML edit failed, trying hermes config set...${NC}"
-        hermes config set channels.telegram.enabled true 2>&1 || true
-        hermes config set channels.telegram.bot_token "$TELEGRAM_BOT_TOKEN" 2>&1 || true
+        echo -e "${RED}  ✗ Python YAML config failed${NC}"
+        echo -e "${YELLOW}  Manual fix: hermes config edit${NC}"
     fi
 
-    # Step 4: Restrict config.yaml permissions
+    # Step 4: Restrict permissions
     chmod 600 "$HOME/.hermes/config.yaml" 2>/dev/null || true
 
-    # Step 5: Verify config
-    echo -e "${CYAN}  Verifying configuration...${NC}"
-    if [[ -f "$HOME/.hermes/config.yaml" ]]; then
-        if grep -q "custom:myfurina" "$HOME/.hermes/config.yaml" 2>/dev/null; then
-            echo -e "${GREEN}  ✓ Custom provider verified in config${NC}"
-        else
-            echo -e "${YELLOW}  ⚠ Custom provider not found in config (may need manual setup)${NC}"
-        fi
-        if grep -q "telegram" "$HOME/.hermes/config.yaml" 2>/dev/null; then
-            echo -e "${GREEN}  ✓ Telegram config verified${NC}"
-        else
-            echo -e "${YELLOW}  ⚠ Telegram config not found (may need manual setup)${NC}"
-        fi
+    # Step 5: Verify
+    echo -e "${CYAN}  Verifying...${NC}"
+    if grep -q "custom:myfurina" "$HOME/.hermes/config.yaml" 2>/dev/null; then
+        echo -e "${GREEN}  ✓ Custom provider verified${NC}"
     else
-        echo -e "${YELLOW}  ⚠ Config file not found at ~/.hermes/config.yaml${NC}"
+        echo -e "${YELLOW}  ⚠ Custom provider not in config${NC}"
     fi
-
-    echo ""
-    echo -e "${GREEN}  ✓ Hermes configured with custom provider${NC}"
-    echo -e "${GREEN}  ✓ Telegram channel configured${NC}"
-    echo -e "${GREEN}  ✓ Config files secured (chmod 600)${NC}"
+    if grep -q "bot_token" "$HOME/.hermes/config.yaml" 2>/dev/null; then
+        echo -e "${GREEN}  ✓ Telegram config verified${NC}"
+    else
+        echo -e "${YELLOW}  ⚠ Telegram config not in config${NC}"
+    fi
 
 else
     # === OPENCLAW CONFIG ===
     echo -e "${CYAN}  Configuring OpenClaw...${NC}"
 
-    # Create config directory first
     mkdir -p "$HOME/.openclaw"
-
-    # Create comprehensive config with ALL required settings
     OPENCLAW_CONFIG="$HOME/.openclaw/openclaw.json"
 
     cat > "$OPENCLAW_CONFIG" << EOF
 {
   "gateway": {
     "mode": "local",
-    "auth": {
-      "mode": "token"
-    }
+    "auth": { "mode": "token" }
   },
   "models": {
     "providers": {
       "custom": {
         "baseUrl": "$BASE_URL",
         "apiKey": "$API_KEY",
-        "models": [
-          {
-            "id": "$MODEL_NAME",
-            "name": "$MODEL_NAME",
-            "api": "openai-completions",
-            "contextWindow": 128000,
-            "maxTokens": 8192
-          }
-        ]
+        "models": [{
+          "id": "$MODEL_NAME",
+          "name": "$MODEL_NAME",
+          "api": "openai-completions",
+          "contextWindow": 128000,
+          "maxTokens": 8192
+        }]
       }
     }
   },
@@ -497,95 +450,50 @@ else
   }
 }
 EOF
-    echo -e "${GREEN}  ✓ Config file created at $OPENCLAW_CONFIG${NC}"
+    chmod 600 "$OPENCLAW_CONFIG"
+    echo -e "${GREEN}  ✓ OpenClaw config created${NC}"
 
-    # Also try config patch (in case openclaw is already running)
+    # Try config patch
     OPENCLAW_PATCH=$(mktemp /tmp/openclaw-patch-XXXXXX.json)
     chmod 600 "$OPENCLAW_PATCH"
-
     cat > "$OPENCLAW_PATCH" << EOF
 {
-  "gateway": {
-    "mode": "local",
-    "auth": {
-      "mode": "token"
-    }
-  },
-  "models": {
-    "providers": {
-      "custom": {
-        "baseUrl": "$BASE_URL",
-        "apiKey": "$API_KEY",
-        "models": [
-          {
-            "id": "$MODEL_NAME",
-            "name": "$MODEL_NAME",
-            "api": "openai-completions",
-            "contextWindow": 128000,
-            "maxTokens": 8192
-          }
-        ]
-      }
-    }
-  },
-  "telegram": {
-    "botToken": "$TELEGRAM_BOT_TOKEN",
-    "chatId": "$TELEGRAM_CHAT_ID",
-    "enabled": true
-  },
-  "commands": {
-    "ownerAllowFrom": "telegram:$TELEGRAM_CHAT_ID"
-  }
+  "gateway": { "mode": "local", "auth": { "mode": "token" } },
+  "models": { "providers": { "custom": {
+    "baseUrl": "$BASE_URL",
+    "apiKey": "$API_KEY",
+    "models": [{ "id": "$MODEL_NAME", "name": "$MODEL_NAME", "api": "openai-completions", "contextWindow": 128000, "maxTokens": 8192 }]
+  }}},
+  "telegram": { "botToken": "$TELEGRAM_BOT_TOKEN", "chatId": "$TELEGRAM_CHAT_ID", "enabled": true },
+  "commands": { "ownerAllowFrom": "telegram:$TELEGRAM_CHAT_ID" }
 }
 EOF
-
-    echo -e "${CYAN}  Applying config patch...${NC}"
-    if openclaw config patch --file "$OPENCLAW_PATCH" 2>&1; then
-        echo -e "${GREEN}  ✓ Config patch applied successfully${NC}"
-    else
-        echo -e "${YELLOW}  Config patch had warnings (config file already created manually)${NC}"
-    fi
-
-    # SECURITY: Securely wipe and remove temp file
+    openclaw config patch --file "$OPENCLAW_PATCH" 2>&1 || echo -e "${YELLOW}  Patch warnings (config file already created)${NC}"
     shred -u "$OPENCLAW_PATCH" 2>/dev/null || rm -f "$OPENCLAW_PATCH"
 
-    # Save .env with secure permissions
+    # Save .env
     cat > "$INSTALL_DIR/.env" << EOF
-# OpenClaw Environment Variables
-# These are exported by start.sh before launching the gateway
 OPENAI_API_KEY=$API_KEY
 OPENAI_BASE_URL=$BASE_URL
 TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID
 EOF
     chmod 600 "$INSTALL_DIR/.env"
-
-    # Restrict OpenClaw config permissions
-    chmod 600 "$OPENCLAW_CONFIG"
-
-    echo -e "${GREEN}  ✓ OpenClaw configured with custom provider${NC}"
-    echo -e "${GREEN}  ✓ Telegram configured${NC}"
-    echo -e "${GREEN}  ✓ Owner auto-approve set (no pairing needed)${NC}"
-    echo -e "${GREEN}  ✓ Config files secured (chmod 600)${NC}"
+    echo -e "${GREEN}  ✓ OpenClaw configured${NC}"
 fi
 
 # ============================================
-# Create Start Script (no secrets embedded)
+# Start/Stop Scripts
 # ============================================
 cat > "$INSTALL_DIR/start.sh" << 'STARTEOF'
 #!/bin/bash
 set -e
-
-# Load config
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.env"
-
-# Colors
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m'
-
 echo -e "${CYAN}Starting Myfurina...${NC}"
 echo -e "${GREEN}Agent: $AGENT_FRAMEWORK${NC}"
 echo -e "${GREEN}Model: $MODEL${NC}"
@@ -593,149 +501,76 @@ STARTEOF
 
 if [[ "$AGENT_CHOICE" == "1" ]]; then
     cat >> "$INSTALL_DIR/start.sh" << 'STARTEOF'
-
-# Export env vars for Hermes
 export OPENAI_API_KEY="$API_KEY"
 export OPENAI_BASE_URL="$BASE_URL"
-
-# Verify Hermes is installed
 if ! command -v hermes &> /dev/null; then
-    echo -e "${RED}Error: hermes command not found${NC}"
-    echo -e "${YELLOW}Try: curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash${NC}"
-    exit 1
+    echo -e "${RED}Error: hermes not found${NC}"; exit 1
 fi
-
-# Verify config exists
 if [[ ! -f "$HOME/.hermes/config.yaml" ]]; then
-    echo -e "${RED}Error: Hermes config not found at ~/.hermes/config.yaml${NC}"
-    echo -e "${YELLOW}Re-run the installer or run: hermes setup${NC}"
-    exit 1
+    echo -e "${RED}Error: config.yaml not found${NC}"; exit 1
 fi
-
-# Start Hermes gateway
 echo -e "${CYAN}Starting Hermes gateway...${NC}"
 hermes gateway start
-echo -e "${GREEN}✓ Hermes gateway started${NC}"
-echo ""
-echo -e "${GREEN}Myfurina is running!${NC}"
-echo -e "  Chat: Telegram"
-echo -e "  Stop: ~/.superagent/stop.sh"
+echo -e "${GREEN}✓ Myfurina is running!${NC}"
+echo -e "  Chat: Telegram | Stop: ~/.superagent/stop.sh"
 STARTEOF
 else
     cat >> "$INSTALL_DIR/start.sh" << 'STARTEOF'
-
-# Export env vars for OpenClaw
 export OPENAI_API_KEY="$API_KEY"
 export OPENAI_BASE_URL="$BASE_URL"
 export TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"
 export TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"
-
-# Verify OpenClaw is installed
 if ! command -v openclaw &> /dev/null; then
-    echo -e "${RED}Error: openclaw command not found${NC}"
-    echo -e "${YELLOW}Try: npm install -g openclaw${NC}"
-    exit 1
+    echo -e "${RED}Error: openclaw not found${NC}"; exit 1
 fi
-
-# Verify config exists
-if [[ ! -f "$HOME/.openclaw/openclaw.json" ]]; then
-    echo -e "${RED}Error: OpenClaw config not found at ~/.openclaw/openclaw.json${NC}"
-    echo -e "${YELLOW}Re-run the installer or create config manually${NC}"
-    exit 1
-fi
-
-# Start OpenClaw gateway
 echo -e "${CYAN}Starting OpenClaw gateway...${NC}"
 openclaw gateway start
-echo -e "${GREEN}✓ OpenClaw gateway started${NC}"
-echo ""
-echo -e "${GREEN}Myfurina is running!${NC}"
-echo -e "  Chat: Telegram"
-echo -e "  Stop: ~/.superagent/stop.sh"
+echo -e "${GREEN}✓ Myfurina is running!${NC}"
+echo -e "  Chat: Telegram | Stop: ~/.superagent/stop.sh"
 STARTEOF
 fi
-
 chmod +x "$INSTALL_DIR/start.sh"
 
-# ============================================
-# Create Stop Script
-# ============================================
 cat > "$INSTALL_DIR/stop.sh" << 'STOPEOF'
 #!/bin/bash
-set -e
-
-# Load config
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.env"
-
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
-
 echo "Stopping Myfurina..."
 STOPEOF
-
 if [[ "$AGENT_CHOICE" == "1" ]]; then
-    cat >> "$INSTALL_DIR/stop.sh" << 'STOPEOF'
-
-hermes gateway stop 2>/dev/null || true
-echo -e "${GREEN}✓ Hermes gateway stopped${NC}"
-STOPEOF
+    echo 'hermes gateway stop 2>/dev/null || true' >> "$INSTALL_DIR/stop.sh"
+    echo 'echo -e "${GREEN}✓ Stopped${NC}"' >> "$INSTALL_DIR/stop.sh"
 else
-    cat >> "$INSTALL_DIR/stop.sh" << 'STOPEOF'
-
-openclaw gateway stop 2>/dev/null || true
-echo -e "${GREEN}✓ OpenClaw gateway stopped${NC}"
-STOPEOF
+    echo 'openclaw gateway stop 2>/dev/null || true' >> "$INSTALL_DIR/stop.sh"
+    echo 'echo -e "${GREEN}✓ Stopped${NC}"' >> "$INSTALL_DIR/stop.sh"
 fi
-
 chmod +x "$INSTALL_DIR/stop.sh"
-
 echo -e "${GREEN}  ✓ Start/Stop scripts created${NC}"
-echo ""
-
-# ============================================
-# Security Summary
-# ============================================
-echo -e "${YELLOW}  Security measures applied:${NC}"
-echo -e "    • config.env — chmod 600 (owner read/write only)"
-echo -e "    • .env — chmod 600 (owner read/write only)"
-echo -e "    • ~/.superagent/ — chmod 700 (owner access only)"
-echo -e "    • brain/ — chmod 700 (owner access only)"
-echo -e "    • .gitignore — prevents accidental secret commits"
-echo -e "    • Temp patch file — securely wiped after use"
-echo ""
 
 # ============================================
 # Done!
 # ============================================
+echo ""
 echo -e "${MAGENTA}${BOLD}"
 echo "  ╔══════════════════════════════════════════════════════════╗"
 echo "  ║           🎉 Myfurina Installation Complete! 🎉          ║"
 echo "  ╚══════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 echo ""
-echo -e "  ${BOLD}Agent Framework:${NC} $AGENT_NAME"
-echo -e "  ${BOLD}Model:${NC}          $MODEL_NAME"
-echo -e "  ${BOLD}Telegram:${NC}       Connected (Chat ID: $TELEGRAM_CHAT_ID)"
-echo ""
-echo -e "  ${BOLD}Install Dir:${NC}    $INSTALL_DIR"
-echo -e "  ${BOLD}Brain Dir:${NC}      $BRAIN_DIR"
+echo -e "  ${BOLD}Framework:${NC} $AGENT_NAME"
+echo -e "  ${BOLD}Model:${NC}     $MODEL_NAME"
+echo -e "  ${BOLD}Telegram:${NC}  Chat ID: $TELEGRAM_CHAT_ID"
 echo ""
 echo -e "  ${CYAN}Start:${NC}  ~/.superagent/start.sh"
 echo -e "  ${CYAN}Stop:${NC}   ~/.superagent/stop.sh"
 echo -e "  ${CYAN}Config:${NC} $INSTALL_DIR/config.env"
 echo ""
-echo -e "  ${BOLD}Edit Profile:${NC}   nano $BRAIN_DIR/USER.md"
-echo -e "  ${BOLD}Edit Memory:${NC}    nano $BRAIN_DIR/MEMORY.md"
-echo -e "  ${BOLD}Edit Tools:${NC}     nano $BRAIN_DIR/TOOLS.md"
-echo ""
 if [[ "$AGENT_CHOICE" == "1" ]]; then
-    echo -e "  ${YELLOW}Hermes Config:${NC} $HOME/.hermes/config.yaml"
-    echo -e "  ${YELLOW}Hermes Env:${NC}    $HOME/.hermes/.env"
+    echo -e "  ${YELLOW}Hermes config:${NC} ~/.hermes/config.yaml"
 else
-    echo -e "  ${YELLOW}OpenClaw Config:${NC} $HOME/.openclaw/openclaw.json"
-    echo -e "  ${GREEN}Owner auto-approve: telegram:$TELEGRAM_CHAT_ID${NC}"
+    echo -e "  ${YELLOW}OpenClaw config:${NC} ~/.openclaw/openclaw.json"
 fi
 echo ""
 echo -e "${GREEN}  Run: ~/.superagent/start.sh${NC}"
