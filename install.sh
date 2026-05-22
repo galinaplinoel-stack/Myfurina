@@ -390,14 +390,51 @@ else
     # === OPENCLAW CONFIG ===
     echo -e "${CYAN}  Configuring OpenClaw...${NC}"
 
-    # Step 1: Setup gateway mode first (required before any config)
-    echo -e "${CYAN}  Setting up gateway...${NC}"
-    openclaw config set gateway.mode local 2>&1 || {
-        echo -e "${YELLOW}  Gateway mode set via config file${NC}"
-    }
+    # Create config directory first
+    mkdir -p "$HOME/.openclaw"
 
-    # Step 2: Create comprehensive config patch with ALL settings
-    # This includes models, gateway, and telegram in one go
+    # Create comprehensive config with ALL required settings
+    # This includes: gateway, models, telegram, AND owner auto-approve
+    OPENCLAW_CONFIG="$HOME/.openclaw/openclaw.json"
+
+    cat > "$OPENCLAW_CONFIG" << EOF
+{
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token"
+    }
+  },
+  "models": {
+    "providers": {
+      "custom": {
+        "baseUrl": "$BASE_URL",
+        "apiKey": "$API_KEY",
+        "models": [
+          {
+            "id": "$MODEL_NAME",
+            "name": "$MODEL_NAME",
+            "api": "openai-completions",
+            "contextWindow": 128000,
+            "maxTokens": 8192
+          }
+        ]
+      }
+    }
+  },
+  "telegram": {
+    "botToken": "$TELEGRAM_BOT_TOKEN",
+    "chatId": "$TELEGRAM_CHAT_ID",
+    "enabled": true
+  },
+  "commands": {
+    "ownerAllowFrom": "telegram:$TELEGRAM_CHAT_ID"
+  }
+}
+EOF
+    echo -e "${GREEN}  ✓ Config file created at $OPENCLAW_CONFIG${NC}"
+
+    # Also try config patch (in case openclaw is already running)
     OPENCLAW_PATCH=$(mktemp /tmp/openclaw-patch-XXXXXX.json)
     chmod 600 "$OPENCLAW_PATCH"
 
@@ -430,6 +467,9 @@ else
     "botToken": "$TELEGRAM_BOT_TOKEN",
     "chatId": "$TELEGRAM_CHAT_ID",
     "enabled": true
+  },
+  "commands": {
+    "ownerAllowFrom": "telegram:$TELEGRAM_CHAT_ID"
   }
 }
 EOF
@@ -438,53 +478,13 @@ EOF
     if openclaw config patch --file "$OPENCLAW_PATCH" 2>&1; then
         echo -e "${GREEN}  ✓ Config patch applied successfully${NC}"
     else
-        echo -e "${YELLOW}  Config patch had warnings, checking config file...${NC}"
-        # Verify config file exists
-        OPENCLAW_CONFIG="$HOME/.openclaw/openclaw.json"
-        if [[ -f "$OPENCLAW_CONFIG" ]]; then
-            echo -e "${GREEN}  ✓ Config file exists at $OPENCLAW_CONFIG${NC}"
-        else
-            echo -e "${RED}  ✗ Config file not found, creating manually...${NC}"
-            mkdir -p "$HOME/.openclaw"
-            cat > "$OPENCLAW_CONFIG" << EOF
-{
-  "gateway": {
-    "mode": "local",
-    "auth": {
-      "mode": "token"
-    }
-  },
-  "models": {
-    "providers": {
-      "custom": {
-        "baseUrl": "$BASE_URL",
-        "apiKey": "$API_KEY",
-        "models": [
-          {
-            "id": "$MODEL_NAME",
-            "name": "$MODEL_NAME",
-            "api": "openai-completions",
-            "contextWindow": 128000,
-            "maxTokens": 8192
-          }
-        ]
-      }
-    }
-  },
-  "telegram": {
-    "botToken": "$TELEGRAM_BOT_TOKEN",
-    "chatId": "$TELEGRAM_CHAT_ID",
-    "enabled": true
-  }
-}
-EOF
-        fi
+        echo -e "${YELLOW}  Config patch had warnings (config file already created manually)${NC}"
     fi
 
     # SECURITY: Securely wipe and remove temp file
     shred -u "$OPENCLAW_PATCH" 2>/dev/null || rm -f "$OPENCLAW_PATCH"
 
-    # Step 3: Save .env with secure permissions
+    # Save .env with secure permissions
     cat > "$INSTALL_DIR/.env" << EOF
 # OpenClaw Environment Variables
 # These are exported by start.sh before launching the gateway
@@ -495,11 +495,12 @@ TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID
 EOF
     chmod 600 "$INSTALL_DIR/.env"
 
-    # Step 4: Restrict OpenClaw config permissions
-    chmod 600 "$HOME/.openclaw/openclaw.json" 2>/dev/null || true
+    # Restrict OpenClaw config permissions
+    chmod 600 "$OPENCLAW_CONFIG"
 
     echo -e "${GREEN}  ✓ OpenClaw configured with custom provider${NC}"
     echo -e "${GREEN}  ✓ Telegram configured${NC}"
+    echo -e "${GREEN}  ✓ Owner auto-approve set (no pairing needed)${NC}"
     echo -e "${GREEN}  ✓ Config files secured (chmod 600)${NC}"
 fi
 
@@ -652,6 +653,7 @@ echo -e "  ${BOLD}Edit Tools:${NC}     nano $BRAIN_DIR/TOOLS.md"
 echo ""
 if [[ "$AGENT_CHOICE" == "2" ]]; then
     echo -e "  ${YELLOW}OpenClaw Config:${NC} $HOME/.openclaw/openclaw.json"
+    echo -e "  ${GREEN}Owner auto-approve: telegram:$TELEGRAM_CHAT_ID${NC}"
     echo ""
 fi
 echo -e "${GREEN}  Run: ~/.superagent/start.sh${NC}"
