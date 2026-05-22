@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Myfurina — AI Agent Orchestration Platform</title>
+    <meta name="description" content="Deploy and manage multiple AI agents with one platform. Multi-agent orchestration, monitoring dashboard, and one-click installation.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --hydro-dark: #0a1628;
+            --hydro-deep: #0d1f3c;
+            --hydro-mid: #134074;
+            --hydro-blue: #1a6fb5;
+            --hydro-light: #4fc3f7;
+            --hydro-glow: #81d4fa;
+            --hydro-pale: #b3e5fc;
+            --hydro-white: #e1f5fe;
+            --accent-gold: #d4a853;
+            --accent-gold-light: #f0d78c;
+            --text-primary: #e8f4fd;
+            --text-secondary: #90caf9;
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--hydro-dark);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+        .water-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .water-bg::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(26,111,181,0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(79,195,247,0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(13,31,60,0.8) 0%, transparent 50%);
+            animation: waterDrift 20s ease-in-out infinite;
+        }
+        @keyframes waterDrift {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(2%, -1%) rotate(1deg); }
+            66% { transform: translate(-1%, 2%) rotate(-1deg); }
+        }
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(129,212,250,0.3), rgba(79,195,247,0.05));
+            border: 1px solid rgba(129,212,250,0.15);
+            animation: bubbleRise linear infinite;
+        }
+        @keyframes bubbleRise {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 0.5; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            padding: 1rem 2rem;
+            background: rgba(10,22,40,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(79,195,247,0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav-logo {
+            font-family: 'Cinzel', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--hydro-light), var(--accent-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+        }
+        .nav-links { display: flex; gap: 2rem; list-style: none; }
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.3s;
+            letter-spacing: 0.05em;
+        }
+        .nav-links a:hover { color: var(--hydro-light); }
+        .hero {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 6rem 2rem 4rem;
+        }
+        .hero-badge {
+            display: inline-block;
+            padding: 0.4rem 1.2rem;
+            border: 1px solid rgba(79,195,247,0.3);
+            border-radius: 100px;
+            font-size: 0.8rem;
+            color: var(--hydro-light);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
+            background: rgba(79,195,247,0.05);
+        }
+        .hero h1 {
+            font-family: 'Cinzel', serif;
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, var(--hydro-pale), var(--hydro-light), var(--accent-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 650px;
+            margin-bottom: 3rem;
+            font-weight: 300;
+        }
+        .hero-buttons { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2.5rem;
+            background: linear-gradient(135deg, var(--hydro-blue), var(--hydro-mid));
+            color: white;
+            border: 1px solid rgba(79,195,247,0.3);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 20px rgba(26,111,181,0.3);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(79,195,247,0.4);
+            border-color: var(--hydro-light);
+        }
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2.5rem;
+            background: transparent;
+            color: var(--hydro-light);
+            border: 1px solid rgba(79,195,247,0.3);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .btn-secondary:hover {
+            background: rgba(79,195,247,0.1);
+            border-color: var(--hydro-light);
+        }
+        section {
+            position: relative;
+            z-index: 1;
+            padding: 5rem 2rem;
+        }
+        .section-title {
+            font-family: 'Cinzel', serif;
+            font-size: clamp(2rem, 4vw, 3rem);
+            text-align: center;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--hydro-pale), var(--hydro-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .section-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 650px;
+            margin: 0 auto 4rem;
+            font-weight: 300;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .feature-card {
+            background: rgba(13,31,60,0.6);
+            border: 1px solid rgba(79,195,247,0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(79,195,247,0.3);
+            box-shadow: 0 8px 32px rgba(26,111,181,0.2);
+        }
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(79,195,247,0.2), rgba(26,111,181,0.1));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .feature-card h3 {
+            font-family: 'Cinzel', serif;
+            font-size: 1.2rem;
+            margin-bottom: 0.75rem;
+            color: var(--hydro-pale);
+        }
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 300;
+        }
+        .comparison-container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        .comparison-card {
+            background: rgba(13,31,60,0.6);
+            border: 1px solid rgba(79,195,247,0.15);
+            border-radius: 16px;
+            padding: 2.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+        .comparison-card:hover {
+            border-color: rgba(79,195,247,0.4);
+            box-shadow: 0 0 40px rgba(79,195,247,0.1);
+        }
+        .comparison-card.recommended {
+            border-color: var(--accent-gold);
+            background: rgba(212,168,83,0.05);
+        }
+        .comparison-card.recommended::before {
+            content: 'RECOMMENDED';
+            display: block;
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            color: var(--accent-gold);
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .comparison-card h3 {
+            font-family: 'Cinzel', serif;
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            color: var(--hydro-pale);
+        }
+        .comparison-card .desc {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            font-weight: 300;
+        }
+        .comparison-card ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .comparison-card li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+        .comparison-card li::before {
+            content: '~';
+            color: var(--hydro-light);
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .orchestration-demo {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(10,22,40,0.8);
+            border: 1px solid rgba(79,195,247,0.2);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .demo-header {
+            background: rgba(13,31,60,0.8);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(79,195,247,0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .demo-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .demo-dot.red { background: #ff5f57; }
+        .demo-dot.yellow { background: #febc2e; }
+        .demo-dot.green { background: #28c840; }
+        .demo-title {
+            margin-left: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        .demo-body {
+            padding: 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+        }
+        .demo-line { margin-bottom: 0.5rem; }
+        .demo-prompt { color: var(--hydro-light); }
+        .demo-cmd { color: var(--hydro-glow); }
+        .demo-output { color: var(--text-secondary); }
+        .demo-success { color: #4caf50; }
+        .demo-agent {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            margin-right: 0.5rem;
+        }
+        .demo-agent.running {
+            background: rgba(76,175,80,0.15);
+            color: #4caf50;
+            border: 1px solid rgba(76,175,80,0.3);
+        }
+        .demo-agent.stopped {
+            background: rgba(244,67,54,0.15);
+            color: #f44336;
+            border: 1px solid rgba(244,67,54,0.3);
+        }
+        .dashboard-preview {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(10,22,40,0.8);
+            border: 1px solid rgba(79,195,247,0.2);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .dashboard-header {
+            background: rgba(13,31,60,0.8);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(79,195,247,0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .dashboard-title {
+            font-family: 'Cinzel', serif;
+            font-size: 1.1rem;
+            background: linear-gradient(135deg, var(--hydro-light), var(--accent-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            padding: 1.5rem;
+        }
+        .dash-stat {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(13,31,60,0.5);
+            border-radius: 8px;
+            border: 1px solid rgba(79,195,247,0.1);
+        }
+        .dash-stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--hydro-light);
+        }
+        .dash-stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.3rem;
+        }
+        .dashboard-agents {
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+        .dash-agent {
+            background: rgba(13,31,60,0.5);
+            border: 1px solid rgba(79,195,247,0.15);
+            border-radius: 10px;
+            padding: 1.2rem;
+        }
+        .dash-agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+        .dash-agent-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        .dash-status {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 100px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .dash-status.running {
+            background: rgba(76,175,80,0.15);
+            color: #4caf50;
+        }
+        .dash-status.stopped {
+            background: rgba(244,67,54,0.15);
+            color: #f44336;
+        }
+        .dash-agent-detail {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.3rem;
+        }
+        .install-container { max-width: 700px; margin: 0 auto; }
+        .code-block {
+            background: rgba(10,22,40,0.8);
+            border: 1px solid rgba(79,195,247,0.15);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            position: relative;
+        }
+        .code-block code { color: var(--hydro-light); }
+        .code-block .comment { color: rgba(129,212,250,0.4); }
+        .code-block .cmd { color: var(--hydro-glow); }
+        .copy-btn {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: rgba(79,195,247,0.1);
+            border: 1px solid rgba(79,195,247,0.2);
+            color: var(--hydro-light);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover { background: rgba(79,195,247,0.2); }
+        .providers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .provider-pill {
+            background: rgba(13,31,60,0.5);
+            border: 1px solid rgba(79,195,247,0.1);
+            border-radius: 100px;
+            padding: 0.6rem 1.2rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            transition: all 0.3s;
+        }
+        .provider-pill:hover {
+            border-color: rgba(79,195,247,0.3);
+            color: var(--hydro-light);
+            background: rgba(79,195,247,0.05);
+        }
+        footer {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 3rem 2rem;
+            border-top: 1px solid rgba(79,195,247,0.1);
+            background: rgba(10,22,40,0.5);
+        }
+        footer p { color: var(--text-secondary); font-size: 0.85rem; }
+        footer a { color: var(--hydro-light); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+        @media (max-width: 768px) {
+            .features-grid { grid-template-columns: 1fr; }
+            .comparison-container { grid-template-columns: 1fr; }
+            .dashboard-stats { grid-template-columns: repeat(2, 1fr); }
+            .dashboard-agents { grid-template-columns: 1fr; }
+            .nav-links { display: none; }
+            nav { justify-content: center; }
+        }
+        @media (max-width: 480px) {
+            .hero-buttons { flex-direction: column; align-items: center; }
+            .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+            .dashboard-stats { grid-template-columns: 1fr; }
+        }
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s, transform 0.8s;
+        }
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="water-bg" id="waterBg"></div>
+
+    <nav>
+        <a href="#" class="nav-logo">Myfurina</a>
+        <ul class="nav-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#orchestration">Orchestration</a></li>
+            <li><a href="#dashboard">Dashboard</a></li>
+            <li><a href="#install">Install</a></li>
+            <li><a href="https://github.com/galinaplinoel-stack/Myfurina" target="_blank">GitHub</a></li>
+        </ul>
+    </nav>
+
+    <section class="hero">
+        <span class="hero-badge">AI Agent Orchestration Platform</span>
+        <h1>Myfurina</h1>
+        <p>Deploy and manage multiple AI agents from one platform. Multi-agent orchestration, real-time monitoring, and one-click installation.</p>
+        <div class="hero-buttons">
+            <a href="#install" class="btn-primary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Get Started
+            </a>
+            <a href="https://github.com/galinaplinoel-stack/Myfurina" target="_blank" class="btn-secondary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                View on GitHub
+            </a>
+        </div>
+    </section>
+
+    <section id="features">
+        <h2 class="section-title fade-in">The Power of Water</h2>
+        <p class="section-subtitle fade-in">Everything you need to deploy and manage autonomous AI agents.</p>
+        <div class="features-grid">
+            <div class="feature-card fade-in">
+                <div class="feature-icon">&#x1F9E9;</div>
+                <h3>One-Click Install</h3>
+                <p>Single bash script handles everything: dependencies, framework, config, brain system, and Telegram integration.</p>
+            </div>
+            <div class="feature-card fade-in">
+                <div class="feature-icon">&#x1F500;</div>
+                <h3>Multi-Agent</h3>
+                <p>Run multiple agents simultaneously, each with its own config, Telegram bot, model, and personality.</p>
+            </div>
+            <div class="feature-card fade-in">
+                <div class="feature-icon">&#x1F4CA;</div>
+                <h3>Live Dashboard</h3>
+                <p>Real-time monitoring dashboard shows all agents, their status, and quick actions to manage them.</p>
+            </div>
+            <div class="feature-card fade-in">
+                <div class="feature-icon">&#x1F9E0;</div>
+                <h3>Brain System</h3>
+                <p>SOUL.md constitution, modular skills, persistent memory, and user profile. Your agent thinks for itself.</p>
+            </div>
+            <div class="feature-card fade-in">
+                <div class="feature-icon">&#x1F512;</div>
+                <h3>Secure by Default</h3>
+                <p>All config files are chmod 600. Directories are chmod 700. Temp files are securely wiped. No secrets in git.</p>
+            </div>
+            <div class="feature-card fade-in">
+                <div class="feature-icon">&#x1F511;</div>
+                <h3>Multi-Provider</h3>
+                <p>Works with OpenAI, Anthropic, OpenRouter, DeepSeek, Groq, and 20+ more providers.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="orchestration">
+        <h2 class="section-title fade-in">Multi-Agent Orchestration</h2>
+        <p class="section-subtitle fade-in">Run multiple specialized agents from a single VPS. Each agent is fully isolated with its own config and personality.</p>
+
+        <div class="orchestration-demo fade-in">
+            <div class="demo-header">
+                <div class="demo-dot red"></div>
+                <div class="demo-dot yellow"></div>
+                <div class="demo-dot green"></div>
+                <span class="demo-title">Terminal — myfurina</span>
+            </div>
+            <div class="demo-body">
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-cmd">myfurina create support-bot</span></div>
+                <div class="demo-line"><span class="demo-output">Creating agent: support-bot</span></div>
+                <div class="demo-line"><span class="demo-output">Model: GPT-4o | Telegram: @support_bot</span></div>
+                <div class="demo-line"><span class="demo-success">✓ Agent 'support-bot' created!</span></div>
+                <div class="demo-line">&nbsp;</div>
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-cmd">myfurina create content-writer</span></div>
+                <div class="demo-line"><span class="demo-output">Creating agent: content-writer</span></div>
+                <div class="demo-line"><span class="demo-output">Model: Claude Sonnet | Telegram: @content_bot</span></div>
+                <div class="demo-line"><span class="demo-success">✓ Agent 'content-writer' created!</span></div>
+                <div class="demo-line">&nbsp;</div>
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-cmd">myfurina start support-bot</span></div>
+                <div class="demo-line"><span class="demo-success">✓ Agent 'support-bot' started</span></div>
+                <div class="demo-line">&nbsp;</div>
+                <div class="demo-line"><span class="demo-prompt">$</span> <span class="demo-cmd">myfurina status</span></div>
+                <div class="demo-line"><span class="demo-agent running">● support-bot</span> <span class="demo-agent stopped">○ content-writer</span></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="dashboard">
+        <h2 class="section-title fade-in">Monitoring Dashboard</h2>
+        <p class="section-subtitle fade-in">Real-time visibility into all your agents. Auto-refreshes every 10 seconds.</p>
+
+        <div class="dashboard-preview fade-in">
+            <div class="dashboard-header">
+                <div class="dashboard-title">Myfurina Dashboard</div>
+                <div style="color:var(--text-secondary);font-size:0.8rem;">vps-production</div>
+            </div>
+            <div class="dashboard-stats">
+                <div class="dash-stat">
+                    <div class="dash-stat-value">4</div>
+                    <div class="dash-stat-label">Total Agents</div>
+                </div>
+                <div class="dash-stat">
+                    <div class="dash-stat-value">3</div>
+                    <div class="dash-stat-label">Running</div>
+                </div>
+                <div class="dash-stat">
+                    <div class="dash-stat-value">1</div>
+                    <div class="dash-stat-label">Stopped</div>
+                </div>
+                <div class="dash-stat">
+                    <div class="dash-stat-value">99.8%</div>
+                    <div class="dash-stat-label">Uptime</div>
+                </div>
+            </div>
+            <div class="dashboard-agents">
+                <div class="dash-agent">
+                    <div class="dash-agent-header">
+                        <span class="dash-agent-name">support-bot</span>
+                        <span class="dash-status running">Running</span>
+                    </div>
+                    <div class="dash-agent-detail">Model: GPT-4o</div>
+                    <div class="dash-agent-detail">Chat: @support_bot</div>
+                </div>
+                <div class="dash-agent">
+                    <div class="dash-agent-header">
+                        <span class="dash-agent-name">content-writer</span>
+                        <span class="dash-status running">Running</span>
+                    </div>
+                    <div class="dash-agent-detail">Model: Claude Sonnet</div>
+                    <div class="dash-agent-detail">Chat: @content_bot</div>
+                </div>
+                <div class="dash-agent">
+                    <div class="dash-agent-header">
+                        <span class="dash-agent-name">devops-bot</span>
+                        <span class="dash-status running">Running</span>
+                    </div>
+                    <div class="dash-agent-detail">Model: DeepSeek</div>
+                    <div class="dash-agent-detail">Chat: @devops_bot</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="section-title fade-in">Choose Your Framework</h2>
+        <p class="section-subtitle fade-in">Two powerful options. One installer. Pick the one that suits your style.</p>
+        <div class="comparison-container">
+            <div class="comparison-card recommended fade-in">
+                <h3>Hermes Agent</h3>
+                <p class="desc">by Nous Research</p>
+                <ul>
+                    <li>Skills system with curator & hub</li>
+                    <li>Persistent memory (multi-backend)</li>
+                    <li>Multiple isolated profiles</li>
+                    <li>Built-in cron job scheduler</li>
+                    <li>20+ providers, native MCP</li>
+                    <li>Config: YAML (~/.hermes/)</li>
+                </ul>
+            </div>
+            <div class="comparison-card fade-in">
+                <h3>OpenClaw</h3>
+                <p class="desc">AI Agent Framework</p>
+                <ul>
+                    <li>Gateway-based architecture</li>
+                    <li>Tool calling & sessions</li>
+                    <li>30+ built-in providers</li>
+                    <li>Custom provider support</li>
+                    <li>Owner auto-approve</li>
+                    <li>Config: JSON (~/.openclaw/)</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section id="install">
+        <h2 class="section-title fade-in">Installation</h2>
+        <p class="section-subtitle fade-in">Three commands. That's it.</p>
+        <div class="install-container">
+            <div class="code-block fade-in">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <code>
+                    <span class="comment"># Clone the repository</span><br>
+                    <span class="cmd">git clone https://github.com/galinaplinoel-stack/Myfurina.git</span><br>
+                    <span class="cmd">cd Myfurina</span><br><br>
+                    <span class="comment"># Run the installer</span><br>
+                    <span class="cmd">sudo chmod +x install.sh && sudo ./install.sh</span><br><br>
+                    <span class="comment"># Install orchestrator (optional)</span><br>
+                    <span class="cmd">sudo cp myfurina /usr/local/bin/</span><br><br>
+                    <span class="comment"># Start dashboard</span><br>
+                    <span class="cmd">myfurina dashboard</span>
+                </code>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="section-title fade-in">Supported Providers</h2>
+        <p class="section-subtitle fade-in">Connect to any AI provider. Swap anytime.</p>
+        <div class="providers-grid fade-in">
+            <div class="provider-pill">OpenAI</div>
+            <div class="provider-pill">Anthropic</div>
+            <div class="provider-pill">OpenRouter</div>
+            <div class="provider-pill">DeepSeek</div>
+            <div class="provider-pill">Groq</div>
+            <div class="provider-pill">Gemini</div>
+            <div class="provider-pill">xAI</div>
+            <div class="provider-pill">Ollama</div>
+            <div class="provider-pill">Mistral</div>
+            <div class="provider-pill">HuggingFace</div>
+            <div class="provider-pill">Moonshot</div>
+            <div class="provider-pill">DashScope</div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-links">
+            <a href="https://github.com/galinaplinoel-stack/Myfurina" target="_blank">GitHub</a>
+            <a href="https://github.com/galinaplinoel-stack/Myfurina/issues" target="_blank">Issues</a>
+            <a href="https://github.com/NousResearch/hermes-agent" target="_blank">Hermes Agent</a>
+        </div>
+        <p>Myfurina &mdash; Built for execution. &#x1F525;</p>
+        <p style="margin-top:0.5rem;font-size:0.75rem;color:rgba(144,202,249,0.4);">Hydro Archon approves this message.</p>
+    </footer>
+
+    <script>
+        const bg = document.getElementById('waterBg');
+        for (let i = 0; i < 20; i++) {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            const size = Math.random() * 20 + 5;
+            bubble.style.width = size + 'px';
+            bubble.style.height = size + 'px';
+            bubble.style.left = Math.random() * 100 + '%';
+            bubble.style.animationDuration = (Math.random() * 15 + 10) + 's';
+            bubble.style.animationDelay = (Math.random() * 10) + 's';
+            bg.appendChild(bubble);
+        }
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.1 });
+        document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+        function copyCode(btn) {
+            const code = btn.parentElement.querySelector('code').innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 2000);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,482 @@
+#!/bin/bash
+# ============================================
+# Myfurina Orchestrator — Multi-Agent Manager
+# ============================================
+
+set -e
+
+HERMES_HOME="$HOME/.hermes"
+MYFURINA_DIR="$HOME/.superagent"
+DASHBOARD_DIR="$MYFURINA_DIR/dashboard"
+AGENTS_FILE="$MYFURINA_DIR/agents.json"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# ============================================
+# Helper Functions
+# ============================================
+
+ensure_files() {
+    mkdir -p "$MYFURINA_DIR" "$DASHBOARD_DIR"
+    if [[ ! -f "$AGENTS_FILE" ]]; then
+        echo '{"agents":[]}' > "$AGENTS_FILE"
+    fi
+}
+
+get_agents() {
+    python3 -c "
+import json, sys
+with open('$AGENTS_FILE') as f:
+    data = json.load(f)
+for a in data.get('agents', []):
+    print(f\"{a['name']}|{a.get('profile','default')}|{a.get('model','N/A')}|{a.get('telegram_chat','N/A')}|{a.get('status','stopped')}\")
+" 2>/dev/null || echo ""
+}
+
+agent_exists() {
+    python3 -c "
+import json
+with open('$AGENTS_FILE') as f:
+    data = json.load(f)
+names = [a['name'] for a in data.get('agents', [])]
+print('yes' if '$1' in names else 'no')
+" 2>/dev/null || echo "no"
+}
+
+add_agent() {
+    local name="$1"
+    local profile="$2"
+    local model="$3"
+    local telegram_chat="$4"
+
+    python3 << PYEOF
+import json
+
+with open('$AGENTS_FILE') as f:
+    data = json.load(f)
+
+data['agents'].append({
+    'name': '$name',
+    'profile': '$profile',
+    'model': '$model',
+    'telegram_chat': '$telegram_chat',
+    'status': 'stopped',
+    'created': '$(date -Iseconds)'
+})
+
+with open('$AGENTS_FILE', 'w') as f:
+    json.dump(data, f, indent=2)
+PYEOF
+}
+
+remove_agent() {
+    local name="$1"
+    python3 << PYEOF
+import json
+
+with open('$AGENTS_FILE') as f:
+    data = json.load(f)
+
+data['agents'] = [a for a in data['agents'] if a['name'] != '$name']
+
+with open('$AGENTS_FILE', 'w') as f:
+    json.dump(data, f, indent=2)
+PYEOF
+}
+
+update_agent_status() {
+    local name="$1"
+    local status="$2"
+    python3 << PYEOF
+import json
+
+with open('$AGENTS_FILE') as f:
+    data = json.load(f)
+
+for a in data['agents']:
+    if a['name'] == '$name':
+        a['status'] = '$status'
+
+with open('$AGENTS_FILE', 'w') as f:
+    json.dump(data, f, indent=2)
+PYEOF
+}
+
+# ============================================
+# Commands
+# ============================================
+
+cmd_help() {
+    echo -e "${MAGENTA}${BOLD}Myfurina Orchestrator${NC} — Multi-Agent Manager"
+    echo ""
+    echo -e "  ${BOLD}Usage:${NC} myfurina <command> [args]"
+    echo ""
+    echo -e "  ${BOLD}Commands:${NC}"
+    echo -e "    ${CYAN}create${NC} <name>     Create a new agent"
+    echo -e "    ${CYAN}start${NC} <name>      Start an agent gateway"
+    echo -e "    ${CYAN}stop${NC} <name>       Stop an agent gateway"
+    echo -e "    ${CYAN}restart${NC} <name>    Restart an agent gateway"
+    echo -e "    ${CYAN}status${NC} [name]     Show agent status"
+    echo -e "    ${CYAN}list${NC}              List all agents"
+    echo -e "    ${CYAN}delete${NC} <name>     Delete an agent"
+    echo -e "    ${CYAN}logs${NC} <name>       View agent logs"
+    echo -e "    ${CYAN}dashboard${NC}         Start monitoring dashboard"
+    echo -e "    ${CYAN}help${NC}              Show this help"
+    echo ""
+}
+
+cmd_create() {
+    local name="$1"
+    if [[ -z "$name" ]]; then
+        echo -e "${RED}Error: Agent name required${NC}"
+        echo -e "  Usage: myfurina create <name>"
+        return 1
+    fi
+
+    if [[ "$(agent_exists "$name")" == "yes" ]]; then
+        echo -e "${RED}Error: Agent '$name' already exists${NC}"
+        return 1
+    fi
+
+    echo -e "${CYAN}Creating agent: $name${NC}"
+    echo ""
+
+    # Create Hermes profile
+    echo -e "${YELLOW}Creating Hermes profile...${NC}"
+    hermes profile create "$name" 2>&1 || {
+        echo -e "${RED}Failed to create profile${NC}"
+        return 1
+    }
+
+    # Collect config
+    echo -e -n "${CYAN}  API Key: ${NC}"
+    read -r api_key
+    while [[ -z "$api_key" ]]; do
+        echo -e "${RED}  Required!${NC}"
+        read -r api_key
+    done
+
+    echo -e -n "${CYAN}  Base URL (default: https://api.openai.com/v1): ${NC}"
+    read -r base_url
+    base_url=${base_url:-"https://api.openai.com/v1"}
+
+    echo -e -n "${CYAN}  Model: ${NC}"
+    read -r model
+    while [[ -z "$model" ]]; do
+        echo -e "${RED}  Required!${NC}"
+        read -r model
+    done
+
+    echo -e -n "${CYAN}  Telegram Bot Token: ${NC}"
+    read -r bot_token
+    while [[ -z "$bot_token" ]]; do
+        echo -e "${RED}  Required!${NC}"
+        read -r bot_token
+    done
+
+    echo -e -n "${CYAN}  Telegram Chat ID: ${NC}"
+    read -r chat_id
+    while [[ -z "$chat_id" ]]; do
+        echo -e "${RED}  Required!${NC}"
+        read -r chat_id
+    done
+
+    # Configure the profile
+    echo -e "${YELLOW}Configuring agent...${NC}"
+    hermes -p "$name" config set custom_providers.myfurina.name "Myfurina" 2>&1 || true
+    hermes -p "$name" config set custom_providers.myfurina.base_url "$base_url" 2>&1 || true
+    hermes -p "$name" config set custom_providers.myfurina.api_key "$api_key" 2>&1 || true
+    hermes -p "$name" config set custom_providers.myfurina.model "$model" 2>&1 || true
+    hermes -p "$name" config set main_provider "custom:myfurina" 2>&1 || true
+
+    # Set Telegram config via Python
+    python3 << PYEOF
+import yaml, os
+
+config_path = os.path.expanduser("~/.hermes/profiles/$name/config.yaml")
+os.makedirs(os.path.dirname(config_path), exist_ok=True)
+
+config = {}
+if os.path.exists(config_path):
+    try:
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f) or {}
+    except:
+        config = {}
+
+config['telegram'] = {
+    'allowed_chats': '$chat_id',
+    'bot_token': '$bot_token',
+    'enabled': True,
+    'channel_prompts': {},
+    'reactions': False
+}
+
+with open(config_path, 'w') as f:
+    yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+PYEOF
+
+    # Create brain directory for this profile
+    local brain_dir="$HERMES_HOME/profiles/$name/brain"
+    mkdir -p "$brain_dir/skills" "$brain_dir/memory"
+
+    cat > "$brain_dir/USER.md" << EOF
+# USER.md — Agent: $name
+**Profile**: $name
+**Model**: $model
+EOF
+
+    # Save to agents.json
+    add_agent "$name" "$name" "$model" "$chat_id"
+
+    echo ""
+    echo -e "${GREEN}  ✓ Agent '$name' created!${NC}"
+    echo -e "  Profile: $name"
+    echo -e "  Model: $model"
+    echo -e "  Start: myfurina start $name"
+}
+
+cmd_start() {
+    local name="$1"
+    if [[ -z "$name" ]]; then
+        echo -e "${RED}Error: Agent name required${NC}"
+        return 1
+    fi
+
+    if [[ "$(agent_exists "$name")" != "yes" ]]; then
+        echo -e "${RED}Error: Agent '$name' not found${NC}"
+        return 1
+    fi
+
+    echo -e "${CYAN}Starting agent: $name${NC}"
+    hermes -p "$name" gateway start 2>&1 || {
+        echo -e "${RED}Failed to start gateway${NC}"
+        return 1
+    }
+
+    update_agent_status "$name" "running"
+    echo -e "${GREEN}  ✓ Agent '$name' started${NC}"
+}
+
+cmd_stop() {
+    local name="$1"
+    if [[ -z "$name" ]]; then
+        echo -e "${RED}Error: Agent name required${NC}"
+        return 1
+    fi
+
+    echo -e "${CYAN}Stopping agent: $name${NC}"
+    hermes -p "$name" gateway stop 2>&1 || true
+    update_agent_status "$name" "stopped"
+    echo -e "${GREEN}  ✓ Agent '$name' stopped${NC}"
+}
+
+cmd_restart() {
+    local name="$1"
+    if [[ -z "$name" ]]; then
+        echo -e "${RED}Error: Agent name required${NC}"
+        return 1
+    fi
+
+    cmd_stop "$name"
+    sleep 2
+    cmd_start "$name"
+}
+
+cmd_status() {
+    local name="$1"
+
+    if [[ -n "$name" ]]; then
+        # Show specific agent status
+        if [[ "$(agent_exists "$name")" != "yes" ]]; then
+            echo -e "${RED}Error: Agent '$name' not found${NC}"
+            return 1
+        fi
+
+        echo -e "${MAGENTA}${BOLD}Agent: $name${NC}"
+        echo -e "  Profile: $name"
+        hermes -p "$name" gateway status 2>&1 || echo -e "  Status: unknown"
+    else
+        # Show all agents
+        echo -e "${MAGENTA}${BOLD}Myfurina Agents${NC}"
+        echo ""
+
+        local agents=$(get_agents)
+        if [[ -z "$agents" ]]; then
+            echo -e "  ${YELLOW}No agents created yet${NC}"
+            echo -e "  Create one: myfurina create <name>"
+            return
+        fi
+
+        while IFS='|' read -r aname profile model chat status; do
+            local status_icon="●"
+            local status_color="$RED"
+            if hermes -p "$aname" gateway status 2>/dev/null | grep -q "running"; then
+                status_icon="●"
+                status_color="$GREEN"
+                status="running"
+            else
+                status="stopped"
+            fi
+
+            echo -e "  ${status_color}${status_icon}${NC} ${BOLD}$aname${NC}"
+            echo -e "    Model: $model | Chat: $chat | Status: ${status_color}$status${NC}"
+        done <<< "$agents"
+    fi
+}
+
+cmd_list() {
+    cmd_status
+}
+
+cmd_delete() {
+    local name="$1"
+    if [[ -z "$name" ]]; then
+        echo -e "${RED}Error: Agent name required${NC}"
+        return 1
+    fi
+
+    if [[ "$(agent_exists "$name")" != "yes" ]]; then
+        echo -e "${RED}Error: Agent '$name' not found${NC}"
+        return 1
+    fi
+
+    # Stop first
+    cmd_stop "$name" 2>/dev/null || true
+
+    # Delete profile
+    echo -e "${YELLOW}Deleting profile...${NC}"
+    hermes profile delete "$name" 2>&1 || true
+
+    # Remove from agents.json
+    remove_agent "$name"
+
+    echo -e "${GREEN}  ✓ Agent '$name' deleted${NC}"
+}
+
+cmd_logs() {
+    local name="$1"
+    if [[ -z "$name" ]]; then
+        echo -e "${RED}Error: Agent name required${NC}"
+        return 1
+    fi
+
+    local log_file="$HERMES_HOME/profiles/$name/logs/gateway.log"
+    if [[ -f "$log_file" ]]; then
+        tail -50 "$log_file"
+    else
+        echo -e "${YELLOW}No logs found for '$name'${NC}"
+    fi
+}
+
+# ============================================
+# Dashboard
+# ============================================
+
+generate_dashboard() {
+    # Generate status JSON for dashboard
+    python3 << 'PYEOF'
+import json, os, subprocess, datetime
+
+agents_file = os.path.expanduser("~/.superagent/agents.json")
+dashboard_dir = os.path.expanduser("~/.superagent/dashboard")
+
+os.makedirs(dashboard_dir, exist_ok=True)
+
+# Load agents
+agents = []
+if os.path.exists(agents_file):
+    with open(agents_file) as f:
+        data = json.load(f)
+        agents = data.get("agents", [])
+
+# Check status for each agent
+for agent in agents:
+    name = agent["name"]
+    try:
+        result = subprocess.run(
+            ["hermes", "-p", name, "gateway", "status"],
+            capture_output=True, text=True, timeout=5
+        )
+        agent["status"] = "running" if "running" in result.stdout.lower() else "stopped"
+    except:
+        agent["status"] = "unknown"
+
+# Write status JSON
+status = {
+    "agents": agents,
+    "updated": datetime.datetime.now().isoformat(),
+    "hostname": os.uname().nodename
+}
+
+with open(os.path.join(dashboard_dir, "status.json"), "w") as f:
+    json.dump(status, f, indent=2)
+
+print(json.dumps(status, indent=2))
+PYEOF
+}
+
+cmd_dashboard() {
+    echo -e "${CYAN}Starting Myfurina Dashboard...${NC}"
+
+    # Generate initial status
+    generate_dashboard
+
+    # Start simple HTTP server
+    cd "$DASHBOARD_DIR"
+
+    # Check if port 8080 is available
+    if lsof -i :8080 &>/dev/null; then
+        echo -e "${YELLOW}Port 8080 in use, trying 8081...${NC}"
+        PORT=8081
+    else
+        PORT=8080
+    fi
+
+    echo -e "${GREEN}  ✓ Dashboard running at http://localhost:$PORT${NC}"
+    echo -e "  Press Ctrl+C to stop"
+    echo ""
+
+    # Create a simple update loop
+    while true; do
+        generate_dashboard > /dev/null 2>&1
+        sleep 10
+    done &
+
+    # Start HTTP server
+    python3 -m http.server $PORT 2>/dev/null || {
+        echo -e "${RED}Failed to start HTTP server${NC}"
+        return 1
+    }
+}
+
+# ============================================
+# Main
+# ============================================
+
+ensure_files
+
+case "${1:-help}" in
+    create)     cmd_create "$2" ;;
+    start)      cmd_start "$2" ;;
+    stop)       cmd_stop "$2" ;;
+    restart)    cmd_restart "$2" ;;
+    status)     cmd_status "$2" ;;
+    list)       cmd_list ;;
+    delete)     cmd_delete "$2" ;;
+    logs)       cmd_logs "$2" ;;
+    dashboard)  cmd_dashboard ;;
+    help|--help|-h)  cmd_help ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        cmd_help
+        exit 1
+        ;;
+esac

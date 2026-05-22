@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**One-click installer for AI Agent + Brain System**
+**One-click AI Agent Installer + Multi-Agent Orchestration**
 
 Choose between **Hermes Agent** or **OpenClaw** — both fully supported.
 
@@ -16,27 +16,14 @@ Choose between **Hermes Agent** or **OpenClaw** — both fully supported.
 
 ## What is Myfurina?
 
-Myfurina is a **one-click installer** that sets up a complete AI agent with:
+Myfurina is a **complete AI agent management system**:
 
-- 🤖 **Your choice of framework** — Hermes Agent OR OpenClaw
+- 🤖 **One-click installer** — Hermes Agent or OpenClaw
 - 🧠 **Brain System** — SOUL.md, skills, memory, user profile
-- 📱 **Telegram Bot** — Chat with your agent via Telegram
-- 🔧 **Direct API Config** — API key, base URL, model langsung
-
-### Framework Comparison
-
-| Feature | Hermes Agent | OpenClaw |
-|---------|-------------|----------|
-| **Config Format** | YAML (`~/.hermes/config.yaml`) | JSON (`~/.openclaw/openclaw.json`) |
-| **Custom Providers** | `hermes config set` | `openclaw config patch --file` |
-| **Providers** | 20+ built-in | 30+ built-in |
-| **Skills System** | ✅ Built-in (curator, hub) | ❌ Manual |
-| **Persistent Memory** | ✅ Multi-backend | ❌ Basic |
-| **Profiles** | ✅ Multiple profiles | ❌ Single |
-| **Cron Jobs** | ✅ Built-in scheduler | ❌ External |
-| **MCP Servers** | ✅ Native support | ✅ Native support |
-| **Gateway** | `hermes gateway` | `openclaw gateway` |
-| **Install Method** | Official install script | npm / GitHub |
+- 📱 **Telegram Integration** — Chat with your agent via Telegram
+- 🔀 **Multi-Agent Orchestration** — Run multiple agents simultaneously
+- 📊 **Monitoring Dashboard** — Real-time web dashboard for all agents
+- 🔒 **Security Hardened** — Proper file permissions, .gitignore, secure temp files
 
 ## Quick Start
 
@@ -44,7 +31,6 @@ Myfurina is a **one-click installer** that sets up a complete AI agent with:
 
 - Linux (Ubuntu/Debian recommended)
 - Root access (sudo)
-- Internet connection
 - API Key (from any provider)
 - Telegram Bot Token & Chat ID
 
@@ -66,62 +52,157 @@ sudo ./install.sh
 
 1. **System check** — Verifies Linux and root access
 2. **Choose framework** — Pick Hermes Agent or OpenClaw
-3. **Install dependencies** — Node.js, npm, curl, git
+3. **Install dependencies** — Node.js, npm, curl, git, python3
 4. **Install agent** — Downloads & installs your chosen framework
-5. **API config** — Asks for:
-   - API Key (required)
-   - Base URL (default: `https://api.openai.com/v1`)
-   - Model name (e.g., `gpt-4o`, `claude-sonnet-4`)
+5. **API config** — API key, base URL, model name
 6. **Telegram setup** — Bot token & chat ID (required)
 7. **User profile** — Name, username, language, style
 8. **Brain setup** — Creates all brain files and configures the agent
 
-## After Installation
+## Multi-Agent Orchestration
 
-### Start Myfurina
+Run multiple AI agents on the same VPS, each with its own:
+- Configuration
+- Telegram bot
+- Model/provider
+- Skills and memory
 
-```bash
-~/.superagent/start.sh
-```
-
-### Stop Myfurina
-
-```bash
-~/.superagent/stop.sh
-```
-
-### Edit Your Profile
+### Orchestrator Commands
 
 ```bash
-nano ~/.superagent/brain/USER.md
+# Install orchestrator (after running install.sh)
+sudo cp myfurina /usr/local/bin/
+sudo chmod +x /usr/local/bin/myfurina
+
+# Create a new agent
+myfurina create my-agent
+
+# Start an agent
+myfurina start my-agent
+
+# Stop an agent
+myfurina stop my-agent
+
+# Restart an agent
+myfurina restart my-agent
+
+# View agent status
+myfurina status my-agent
+
+# List all agents
+myfurina list
+
+# View agent logs
+myfurina logs my-agent
+
+# Delete an agent
+myfurina delete my-agent
+
+# Start monitoring dashboard
+myfurina dashboard
 ```
+
+### Example: Running Multiple Agents
+
+```bash
+# Create agent 1: Customer Support
+myfurina create support-bot
+# Enter: GPT-4o, Telegram Bot A
+
+# Create agent 2: Content Writer
+myfurina create content-bot
+# Enter: Claude Sonnet, Telegram Bot B
+
+# Create agent 3: DevOps Assistant
+myfurina create devops-bot
+# Enter: DeepSeek, Telegram Bot C
+
+# Start all agents
+myfurina start support-bot
+myfurina start content-bot
+myfurina start devops-bot
+
+# Check status
+myfurina status
+```
+
+## Monitoring Dashboard
+
+Real-time web dashboard to monitor all your agents.
+
+```bash
+# Start dashboard
+myfurina dashboard
+
+# Access at: http://localhost:8080
+```
+
+### Dashboard Features
+
+- **Agent Overview** — Total, running, and stopped agents
+- **Status Indicators** — Real-time running/stopped status
+- **Agent Cards** — Model, chat ID, profile, creation date
+- **Quick Actions** — Start, stop, view logs
+- **Auto-refresh** — Updates every 10 seconds
+- **Responsive** — Works on desktop and mobile
 
 ## Configuration
 
-The installer creates a config file at:
-```
-~/.superagent/config.env
-```
+### Single Agent (After install.sh)
 
-### Configuration Options
+Config file: `~/.superagent/config.env`
 
-- **API_KEY** — Your API key from any provider
-- **BASE_URL** — API endpoint (e.g., `https://api.openai.com/v1`)
-- **MODEL** — Model name (e.g., `gpt-4o`)
+- **API_KEY** — Your API key
+- **BASE_URL** — API endpoint
+- **MODEL** — Model name
 - **TELEGRAM_BOT_TOKEN** — Telegram bot token
 - **TELEGRAM_CHAT_ID** — Your Telegram chat ID
-- **AGENT_FRAMEWORK** — `Hermes` or `OpenClaw`
 
-### Supported Providers
+### Multi-Agent (Orchestrator)
+
+Each agent uses a Hermes profile:
+
+```bash
+# View profile config
+hermes -p <agent-name> config
+
+# Edit profile config
+hermes -p <agent-name> config edit
+
+# Profile directory
+~/.hermes/profiles/<agent-name>/
+├── config.yaml
+├── .env
+├── brain/
+├── skills/
+├── sessions/
+└── logs/
+```
+
+## Framework Comparison
+
+| Feature | Hermes Agent | OpenClaw |
+|---------|-------------|----------|
+| **Config Format** | YAML (`~/.hermes/config.yaml`) | JSON (`~/.openclaw/openclaw.json`) |
+| **Custom Providers** | `hermes config set` | `openclaw config patch --file` |
+| **Providers** | 20+ built-in | 30+ built-in |
+| **Skills System** | ✅ Built-in (curator, hub) | ❌ Manual |
+| **Persistent Memory** | ✅ Multi-backend | ❌ Basic |
+| **Profiles** | ✅ Multiple profiles | ❌ Single |
+| **Cron Jobs** | ✅ Built-in scheduler | ❌ External |
+| **MCP Servers** | ✅ Native support | ✅ Native support |
+
+## Supported Providers
 
 - **OpenAI** — `https://api.openai.com/v1` (GPT-4o, GPT-4)
 - **Anthropic** — `https://api.anthropic.com/v1` (Claude 3.5, Claude 3)
 - **OpenRouter** — `https://openrouter.ai/api/v1` (100+ models)
 - **DeepSeek** — `https://api.deepseek.com/v1`
 - **Groq** — `https://api.groq.com/v1` (Llama, Mixtral)
+- **Gemini** — `https://generativelanguage.googleapis.com/v1`
 - **Local** — `http://localhost:11434/v1` (Ollama)
 
-## Brain Structure
+## Brain Architecture
 
 ```
 ~/.superagent/brain/
@@ -131,92 +212,58 @@ The installer creates a config file at:
 ├── TOOLS.md         # Available tools
 ├── skills/
 │   ├── m0.md        # Skill registry
-│   ├── m1.md        # Monetization
-│   ├── m2.md        # VPS & DevOps
-│   ├── m3.md        # Content creation
-│   ├── m4.md        # Automation
-│   ├── m5.md        # Data & analytics
-│   ├── m6.md        # API integration
-│   ├── m7.md        # AI & prompts
-│   ├── m8.md        # File production
-│   ├── m9.md        # Web & frontend
-│   ├── x1.md        # Self-improvement
-│   ├── x2.md        # Deep thinking
-│   └── x3.md        # Debug & error
+│   ├── m1-m9.md     # Domain skills
+│   └── x1-x3.md     # Meta skills
 └── memory/
     └── [date].md    # Daily logs
 ```
 
-## Framework-Specific Commands
+## Commands Reference
 
-### Hermes Agent
+### After Installation
 
 ```bash
-# Start gateway
-hermes gateway start
+# Start agent
+~/.superagent/start.sh
 
-# Stop gateway
-hermes gateway stop
-
-# Check status
-hermes gateway status
-
-# View config
-hermes config
+# Stop agent
+~/.superagent/stop.sh
 
 # Edit config
-hermes config edit
-
-# Set custom provider
-hermes config set custom_providers.myfurina.base_url "https://api.example.com/v1"
-hermes config set custom_providers.myfurina.api_key "your-key"
-hermes config set custom_providers.myfurina.model "model-name"
-hermes config set main_provider "custom:myfurina"
-hermes gateway restart
+nano ~/.superagent/config.env
 ```
 
-### OpenClaw
+### Hermes-Specific
 
 ```bash
-# Start gateway
-openclaw gateway start
+# Gateway
+hermes gateway start/stop/status/restart
 
-# Stop gateway
-openclaw gateway stop
+# Config
+hermes config edit
+hermes config set KEY VALUE
 
-# Check status
-openclaw gateway status
-
-# View config
-openclaw config file
-
-# Set custom provider (MUST use patch for custom providers!)
-cat > /tmp/openclaw-patch.json << 'EOF'
-{
-  "models": {
-    "providers": {
-      "custom": {
-        "baseUrl": "https://api.example.com/v1",
-        "apiKey": "your-key",
-        "models": [
-          {
-            "id": "model-name",
-            "name": "Model Name",
-            "api": "openai-completions",
-            "contextWindow": 128000,
-            "maxTokens": 8192
-          }
-        ]
-      }
-    }
-  }
-}
-EOF
-openclaw config patch --file /tmp/openclaw-patch.json
-openclaw gateway restart
+# Profiles
+hermes profile list/create/use/delete
 ```
 
-> ⚠️ **Important:** OpenClaw custom providers MUST use `openclaw config patch --file`, NOT `openclaw config set`. The `config set` command fails for custom providers because they require a `models` array.
+### OpenClaw-Specific
+
+```bash
+# Gateway
+openclaw gateway start/stop/status
+
+# Config (custom providers MUST use patch)
+openclaw config patch --file patch.json
+```
+
+## Security
+
+- All config files: `chmod 600` (owner read/write only)
+- All directories: `chmod 700` (owner access only)
+- `.gitignore` prevents accidental secret commits
+- Temp files securely wiped (`shred -u`)
+- No secrets in start/stop scripts
 
 ## Troubleshooting
 
@@ -235,81 +282,30 @@ openclaw gateway status
 openclaw gateway restart
 ```
 
-### API Key issues
+### Multi-agent issues
 
 ```bash
-# Edit config
-nano ~/.superagent/config.env
+# Check profile exists
+hermes profile list
 
-# For Hermes
-hermes config set custom_providers.myfurina.api_key "new-key"
-hermes gateway restart
+# Check profile config
+hermes -p <name> config
 
-# For OpenClaw
-# Create new patch file with updated key, then:
-openclaw config patch --file /tmp/openclaw-patch.json
-openclaw gateway restart
+# Check profile gateway
+hermes -p <name> gateway status
+
+# View logs
+myfurina logs <name>
 ```
 
 ### Telegram Bot not working
 
 ```bash
-# Check bot token
-cat ~/.superagent/config.env | grep TELEGRAM
-
 # Test bot connection
 curl "https://api.telegram.org/bot<YOUR_TOKEN>/getMe"
-```
 
-## Advanced Usage
-
-### Switch Framework
-
-If you want to switch from one framework to another, re-run the installer:
-```bash
-sudo ./install.sh
-```
-
-It will ask you to choose a new framework and reconfigure everything.
-
-### Custom Skills
-
-Add new skills to:
-```
-~/.superagent/brain/skills/
-```
-
-Follow the format:
-```markdown
-# m10 — [Skill Name]
----
-## Operator Profile
-[Description]
-
-## [Main Section]
-[Content]
-
-## Constraints
-- [Rules]
-```
-
-### Switch Provider
-
-Edit config and reconfigure:
-```bash
-# Edit config
-nano ~/.superagent/config.env
-
-# For Hermes
-hermes config set custom_providers.myfurina.base_url "https://new-provider.com/v1"
-hermes config set custom_providers.myfurina.api_key "new-api-key"
-hermes config set custom_providers.myfurina.model "new-model"
-hermes gateway restart
-
-# For OpenClaw
-# Create patch file with new provider, then:
-openclaw config patch --file /tmp/openclaw-patch.json
-openclaw gateway restart
+# Check config (Hermes)
+cat ~/.hermes/config.yaml | grep -A5 "telegram:"
 ```
 
 ## Contributing
